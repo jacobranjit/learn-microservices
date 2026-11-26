@@ -1,0 +1,934 @@
+{
+  "v": 12,
+  "name": "Oletrex Microservices",
+  "description": "API collection for the learn-microservices repo. Base URLs are collection variables (defaults: local ports from application.properties). Requests run top to bottom as a flow.",
+  "folders": [
+    {
+      "v": 12,
+      "name": "Order Service",
+      "description": "OrderController - /api/orders (port 8081)",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Create Order",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is PLACED with 2 line items\", () => {\n  pw.expect(pw.response.body.status).toBe(\"PLACED\");\n  pw.expect(pw.response.body.lineItems.length).toBe(2);\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"SKU-1\",\n      \"price\": 9.99,\n      \"quantity\": 2\n    },\n    {\n      \"skuCode\": \"SKU-2\",\n      \"price\": 5.0,\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates an order with status PLACED. Returns 201 with a Location header. Saves the new orderNumber into the `orderNumber` environment variable for the requests below."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - validation error",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"\",\n      \"price\": -1,\n      \"quantity\": 0\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Invalid payload (blank skuCode, negative price, zero quantity). Expects 400 problem detail."
+        },
+        {
+          "v": "17",
+          "name": "List Orders - first page",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"orderNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Cursor pagination: first page of 2. Saves nextCursor into <<orderNextCursor>>."
+        },
+        {
+          "v": "17",
+          "name": "List Orders - next page",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<<orderNextCursor>>",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"orderNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Next page, using the nextCursor saved by the previous request. Repeat until hasMore is false."
+        },
+        {
+          "v": "17",
+          "name": "List Orders - invalid cursor",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "cursor",
+              "value": "not-a-cursor",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A cursor that was not issued by the API. Expects 400 'Invalid Cursor'."
+        },
+        {
+          "v": "17",
+          "name": "List Orders - limit too large",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "101",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "limit must be 1-100. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Get Order by Number",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested order\", () => {\n  pw.expect(pw.response.body.orderNumber).toBe(pw.env.get(\"orderNumber\"));\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Returns one order. Run 'Create Order' first to populate <<orderNumber>>. 404 if it does not exist."
+        },
+        {
+          "v": "17",
+          "name": "Delete Order",
+          "method": "DELETE",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Deletes the order and its line items. Returns 204, or 404 if it does not exist."
+        },
+        {
+          "v": "17",
+          "name": "Get Order - not found",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Order Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Order Not Found\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Run after 'Delete Order': the deleted order must now return 404 problem detail."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
+      "name": "Product Service",
+      "description": "ProductController - /api/products (port 8082)",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Create Product",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"skuCode\", \"LAPTOP-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Product has details with 2 attributes and 2 images\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"skuCode\"));\n  pw.expect(pw.response.body.details.attributes.length).toBe(2);\n  pw.expect(pw.response.body.details.images.length).toBe(2);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<skuCode>>\",\n  \"name\": \"Ultrabook 14\",\n  \"description\": \"Lightweight 14-inch laptop\",\n  \"price\": 1299.99,\n  \"currency\": \"USD\",\n  \"active\": true,\n  \"details\": {\n    \"brand\": \"Acme\",\n    \"category\": \"Laptops\",\n    \"weight\": 1.25,\n    \"weightUnit\": \"KG\",\n    \"length\": 31.2,\n    \"width\": 21.5,\n    \"height\": 1.5,\n    \"dimensionUnit\": \"CM\",\n    \"color\": \"Silver\",\n    \"size\": null,\n    \"material\": \"Aluminium\",\n    \"attributes\": [\n      {\n        \"name\": \"RAM\",\n        \"value\": \"16 GB\"\n      },\n      {\n        \"name\": \"Storage\",\n        \"value\": \"512 GB SSD\"\n      }\n    ],\n    \"images\": [\n      {\n        \"url\": \"https://example.com/images/laptop-front.png\",\n        \"altText\": \"Front view\"\n      },\n      {\n        \"url\": \"https://example.com/images/laptop-side.png\",\n        \"altText\": \"Side view\"\n      }\n    ]\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a product with full details. Pre-request script generates a unique <<skuCode>> so the flow can be re-run. Returns 201 with a Location header."
+        },
+        {
+          "v": "17",
+          "name": "Create Product - duplicate SKU",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Product Already Exists'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Product Already Exists\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<skuCode>>\",\n  \"name\": \"Duplicate\",\n  \"price\": 1,\n  \"currency\": \"USD\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Same SKU as 'Create Product'. Expects 409 'Product Already Exists'."
+        },
+        {
+          "v": "17",
+          "name": "Create Product - validation error",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"\",\n  \"name\": \"\",\n  \"price\": -1,\n  \"currency\": \"usd\",\n  \"details\": {\n    \"weight\": -2,\n    \"attributes\": [\n      {\n        \"name\": \"\",\n        \"value\": \"\"\n      }\n    ]\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Blank SKU/name, negative price, lowercase currency, negative weight, blank attribute. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "List Products - first page",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"productNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Cursor pagination: first page of 2 products with details. Saves nextCursor into <<productNextCursor>>."
+        },
+        {
+          "v": "17",
+          "name": "List Products - next page",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<<productNextCursor>>",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"productNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Second page, using the nextCursor saved by the previous request. Repeat until hasMore is false."
+        },
+        {
+          "v": "17",
+          "name": "List Products - invalid cursor",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [
+            {
+              "key": "cursor",
+              "value": "not-a-cursor",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A cursor that was not issued by the API. Expects 400 'Invalid Cursor'."
+        },
+        {
+          "v": "17",
+          "name": "List Products - limit too large",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [
+            {
+              "key": "limit",
+              "value": "101",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "limit must be 1-100. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Get Product by SKU",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products/<<skuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested product\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"skuCode\"));\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Full product including details. 404 if the SKU does not exist."
+        },
+        {
+          "v": "17",
+          "name": "Update Product",
+          "method": "PUT",
+          "endpoint": "<<productBaseUrl>>/api/products/<<skuCode>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Changes are applied\", () => {\n  pw.expect(pw.response.body.name).toBe(\"Ultrabook 14 (2026)\");\n  pw.expect(pw.response.body.details.attributes.length).toBe(1);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Ultrabook 14 (2026)\",\n  \"description\": \"Lightweight 14-inch laptop, 2026 refresh\",\n  \"price\": 1199.0,\n  \"currency\": \"USD\",\n  \"active\": true,\n  \"details\": {\n    \"brand\": \"Acme\",\n    \"category\": \"Laptops\",\n    \"weight\": 1.25,\n    \"weightUnit\": \"KG\",\n    \"length\": 31.2,\n    \"width\": 21.5,\n    \"height\": 1.5,\n    \"dimensionUnit\": \"CM\",\n    \"color\": \"Silver\",\n    \"size\": null,\n    \"material\": \"Aluminium\",\n    \"attributes\": [\n      {\n        \"name\": \"RAM\",\n        \"value\": \"32 GB\"\n      }\n    ],\n    \"images\": [\n      {\n        \"url\": \"https://example.com/images/laptop-front.png\",\n        \"altText\": \"Front view\"\n      },\n      {\n        \"url\": \"https://example.com/images/laptop-side.png\",\n        \"altText\": \"Side view\"\n      }\n    ]\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Replaces the whole product (SKU cannot change). Omitting 'details' removes them; lists replace the existing attributes/images."
+        },
+        {
+          "v": "17",
+          "name": "Delete Product",
+          "method": "DELETE",
+          "endpoint": "<<productBaseUrl>>/api/products/<<skuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Deletes the product and its details, attributes and images. 204, or 404 if missing."
+        },
+        {
+          "v": "17",
+          "name": "Get Product - not found",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products/<<skuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Product Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Product Not Found\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Run after 'Delete Product': expects 404 'Product Not Found'."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
+      "name": "Inventory Service",
+      "description": "InventoryController - /api/inventory (port 8083)",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Create Inventory",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"inventorySkuCode\", \"LAPTOP-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Stock is 25 and in stock\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n  pw.expect(pw.response.body.quantity).toBe(25);\n  pw.expect(pw.response.body.inStock).toBe(true);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"quantity\": 25\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a stock record. Pre-request script generates a unique <<inventorySkuCode>> so the flow can be re-run. Returns 201 with a Location header."
+        },
+        {
+          "v": "17",
+          "name": "Create Inventory - duplicate SKU",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Inventory Already Exists'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Inventory Already Exists\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"quantity\": 1\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Same SKU as 'Create Inventory'. Expects 409 'Inventory Already Exists'."
+        },
+        {
+          "v": "17",
+          "name": "Create Inventory - validation error",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"\",\n  \"quantity\": -5\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Blank SKU and negative quantity. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "List Inventory - first page",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"inventoryNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Cursor pagination: first page of 2. Saves nextCursor into <<inventoryNextCursor>>."
+        },
+        {
+          "v": "17",
+          "name": "List Inventory - next page",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<<inventoryNextCursor>>",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"inventoryNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Next page, using the nextCursor saved by the previous request. Repeat until hasMore is false."
+        },
+        {
+          "v": "17",
+          "name": "List Inventory - invalid cursor",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [
+            {
+              "key": "cursor",
+              "value": "not-a-cursor",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A cursor that was not issued by the API. Expects 400 'Invalid Cursor'."
+        },
+        {
+          "v": "17",
+          "name": "List Inventory - limit too large",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [
+            {
+              "key": "limit",
+              "value": "101",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "limit must be 1-100. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Get Inventory by SKU",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested SKU\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Stock level for one SKU. 404 if the SKU has no record."
+        },
+        {
+          "v": "17",
+          "name": "Update Inventory",
+          "method": "PUT",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Quantity is 0 and out of stock\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n  pw.expect(pw.response.body.inStock).toBe(false);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"quantity\": 0\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Sets the stock level (SKU cannot change). Setting 0 makes inStock false."
+        },
+        {
+          "v": "17",
+          "name": "Update Inventory - validation error",
+          "method": "PUT",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"quantity\": -1\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Negative quantity. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Delete Inventory",
+          "method": "DELETE",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Deletes the stock record. 204, or 404 if missing."
+        },
+        {
+          "v": "17",
+          "name": "Get Inventory - not found",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Inventory Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Inventory Not Found\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Run after 'Delete Inventory': expects 404 'Inventory Not Found'."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
+    }
+  ],
+  "requests": [],
+  "auth": {
+    "authType": "none",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [
+    {
+      "key": "orderBaseUrl",
+      "initialValue": "http://localhost:8081",
+      "currentValue": "http://localhost:8081",
+      "secret": false
+    },
+    {
+      "key": "productBaseUrl",
+      "initialValue": "http://localhost:8082",
+      "currentValue": "http://localhost:8082",
+      "secret": false
+    },
+    {
+      "key": "inventoryBaseUrl",
+      "initialValue": "http://localhost:8083",
+      "currentValue": "http://localhost:8083",
+      "secret": false
+    }
+  ],
+  "preRequestScript": "",
+  "testScript": ""
+}

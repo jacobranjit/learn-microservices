@@ -26,6 +26,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(InvalidCursorException.class)
+    public ProblemDetail handleInvalidCursor(InvalidCursorException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Invalid Cursor");
+        return problem;
+    }
+
     // Raised when a DB constraint fails, e.g. duplicate orderNumber (unique = true)
     // or a missing required column (nullable = false).
     @ExceptionHandler(DataIntegrityViolationException.class)

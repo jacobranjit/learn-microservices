@@ -5,6 +5,502 @@
   "folders": [
     {
       "v": 12,
+      "name": "Auth Service",
+      "description": "Registration, login, service tokens and the public signing keys (port 8086). Run top to bottom: Register stores <<accessToken>>, Admin login stores <<adminToken>>.",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Register",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"registerEmail\", \"user\" + Date.now() + \"@example.com\");",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates the account and the customer profile, returns a USER token and stores it as <<accessToken>>. Generates a unique <<registerEmail>>."
+        },
+        {
+          "v": "17",
+          "name": "Login",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Logs in the account created by Register (email is case-insensitive). Run Register first."
+        },
+        {
+          "v": "17",
+          "name": "Admin login",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"adminToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"admin@oletrex.local\",\n  \"password\": \"Admin123!\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Logs in the first admin (ADMIN_EMAIL / ADMIN_PASSWORD from .env, dev defaults shown) and stores <<adminToken>>."
+        },
+        {
+          "v": "17",
+          "name": "Service token (order)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/token",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});\npw.env.set(\"serviceToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"clientId\": \"order-service\",\n  \"clientSecret\": \"order-dev-secret\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Client-credentials token for the order service (SERVICE role). Stores <<serviceToken>>, used by the inventory Deductions requests."
+        },
+        {
+          "v": "17",
+          "name": "JWKS",
+          "method": "GET",
+          "endpoint": "<<authBaseUrl>>/.well-known/jwks.json",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Publishes at least one RSA key\", () => {\n  pw.expect(pw.response.body.keys.length).toBeGreaterThan(0);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Public signing keys the other services use to verify tokens."
+        },
+        {
+          "v": "17",
+          "name": "Register - duplicate email (409)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Same email as Register; run Register first."
+        },
+        {
+          "v": "17",
+          "name": "Login - wrong password (401)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 401 Unauthorized\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});\npw.test(\"Message does not reveal which part was wrong\", () => {\n  pw.expect(pw.response.body.detail).toBe(\"Invalid email or password\");\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"wrong-password\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Wrong password and unknown email give the same answer."
+        },
+        {
+          "v": "17",
+          "name": "Register - short password (400)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"short@example.com\",\n  \"password\": \"short\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Password must be 8-100 characters."
+        },
+        {
+          "v": "17",
+          "name": "List users (admin)",
+          "method": "GET",
+          "endpoint": "<<authBaseUrl>>/api/auth/users?limit=20",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\nconst target = pw.response.body.items.find((u) => u.role === \"USER\");\nif (target) {\n  pw.env.set(\"userId\", String(target.id));\n}",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Cursor pagination: pass nextCursor as ?cursor= for the next page. Stores the first USER account's id as <<userId>> for the requests below. Run Admin login first."
+        },
+        {
+          "v": "17",
+          "name": "Promote user to admin",
+          "method": "PUT",
+          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/role",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Role is ADMIN\", () => {\n  pw.expect(pw.response.body.role).toBe(\"ADMIN\");\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"role\": \"ADMIN\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Changes the role of <<userId>> (set by List users). You cannot demote yourself (409). Takes effect when the user next logs in."
+        },
+        {
+          "v": "17",
+          "name": "Disable user",
+          "method": "PUT",
+          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/enabled",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"User is disabled\", () => {\n  pw.expect(pw.response.body.enabled).toBe(false);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"enabled\": false\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. A disabled user cannot log in. You cannot disable yourself (409)."
+        },
+        {
+          "v": "17",
+          "name": "Enable user",
+          "method": "PUT",
+          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/enabled",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"User is enabled\", () => {\n  pw.expect(pw.response.body.enabled).toBe(true);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"enabled\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Re-enables an account disabled with Disable user."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
+      "name": "Customer Service",
+      "description": "CustomerController - /api/customers (port 8085). USER tokens use /me; ADMIN lists and reads any customer. Tokens (<<accessToken>>, <<adminToken>>) come from the auth service.",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Get my profile",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Returns the profile of the customer in the USER token's customerId claim."
+        },
+        {
+          "v": "17",
+          "name": "Update my profile",
+          "method": "PUT",
+          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 123 4567\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"line2\": null,\n    \"city\": \"Springfield\",\n    \"state\": \"IL\",\n    \"postalCode\": \"62701\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Updates name, phone and delivery address. Email cannot be changed (any email field is ignored)."
+        },
+        {
+          "v": "17",
+          "name": "List customers (admin)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers?limit=20",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Cursor pagination: pass nextCursor as ?cursor= for the next page."
+        },
+        {
+          "v": "17",
+          "name": "Get customer (admin)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers/1",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only."
+        },
+        {
+          "v": "17",
+          "name": "Get my profile - no token (401)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 401\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Negative case: no Authorization header."
+        },
+        {
+          "v": "17",
+          "name": "List customers as user (403)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 403\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Negative case: a USER token cannot list customers."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
       "name": "Master Data Service",
       "description": "MasterDataController - /api/master-data (port 8084). Loads 1 location, 2000 products, their stock and 300 customers from CSV files. Needs an ADMIN token (<<adminToken>>, run Auth Service > Admin login first); auth, customer, product and inventory services must be running.",
       "folders": [],
@@ -89,594 +585,6 @@
           "description": "Logs in a customer created by Master Data > Populate (MASTERDATA_CUSTOMER_PASSWORD, dev default shown) and stores <<accessToken>>. Run Populate first."
         }
       ]
-    },
-    {
-      "v": 12,
-      "name": "Order Service",
-      "description": "OrderController - /api/orders (port 8081). Placing an order calls the product and inventory services, so all three must be running.",
-      "folders": [],
-      "requests": [
-        {
-          "v": "17",
-          "name": "Setup - create product",
-          "method": "POST",
-          "endpoint": "<<productBaseUrl>>/api/products",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "pw.env.set(\"orderSkuCode\", \"ORD-\" + Date.now());",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"name\": \"Wireless Mouse\",\n  \"price\": 49.99,\n  \"currency\": \"USD\",\n  \"active\": true\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Creates the product the orders below will buy (49.99 USD). Generates a unique <<orderSkuCode>>."
-        },
-        {
-          "v": "17",
-          "name": "Setup - register second user",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/register",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "pw.env.set(\"otherUserEmail\", \"other\" + Date.now() + \"@example.com\");",
-          "testScript": "pw.test(\"Status is 201\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.env.set(\"otherUserToken\", pw.response.body.accessToken);",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"<<otherUserEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Bob Other\",\n  \"phone\": \"+1 555 0101\",\n  \"deliveryAddress\": {\n    \"line1\": \"2 Side St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Registers a second customer and stores their token as <<otherUserToken>>, used to show that one user cannot see another's order."
-        },
-        {
-          "v": "17",
-          "name": "Setup - create location",
-          "method": "POST",
-          "endpoint": "<<inventoryBaseUrl>>/api/locations",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "pw.env.set(\"orderLocationCode\", \"ORDWH-\" + Date.now());",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"code\": \"<<orderLocationCode>>\",\n  \"name\": \"Warehouse <<orderLocationCode>>\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 1,\n  \"active\": true\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Creates a warehouse (priority 1). Generates a unique <<orderLocationCode>>."
-        },
-        {
-          "v": "17",
-          "name": "Setup - add stock",
-          "method": "POST",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"locationCode\": \"<<orderLocationCode>>\",\n  \"quantity\": 5\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Puts 5 units of <<orderSkuCode>> in stock at <<orderLocationCode>>."
-        },
-        {
-          "v": "17",
-          "name": "Create Order",
-          "method": "POST",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is CONFIRMED with the product's price\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n  pw.expect(pw.response.body.lineItems[0].price).toBe(49.99);\n  pw.expect(pw.response.body.lineItems[0].currency).toBe(\"USD\");\n});\npw.test(\"Supplied by the setup location\", () => {\n  pw.expect(pw.response.body.fulfilmentLocationCode).toBe(pw.env.get(\"orderLocationCode\"));\n});\npw.test(\"Order carries the customerId and both addresses\", () => {\n  pw.expect(pw.response.body.customerId !== null).toBe(true);\n  pw.expect(pw.response.body.shippingAddress.city).toBe(\"Austin\");\n  pw.expect(pw.response.body.billingAddress.city).toBe(\"Austin\");\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 2\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "As the registered user (<<accessToken>> from Auth Service > Register), places an order for 2 units with shipping and billing addresses. The order service fetches the product (price 49.99 USD), deducts stock in inventory from one location (recorded as fulfilmentLocationCode), and returns 201 with status CONFIRMED, owned by the user's customerId. Saves <<orderNumber>>."
-        },
-        {
-          "v": "17",
-          "name": "Verify stock deducted",
-          "method": "GET",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<orderSkuCode>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"3 units left\", () => {\n  pw.expect(pw.response.body.quantity).toBe(3);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Stock was 5, the order took 2: expects 3."
-        },
-        {
-          "v": "17",
-          "name": "Create Order - insufficient stock",
-          "method": "POST",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Order is CANCELLED for insufficient stock\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CANCELLED\");\n  pw.expect(pw.response.body.statusReason).toInclude(\"Insufficient stock\");\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 100\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "More than in stock. The order is saved as CANCELLED with a reason; returns 422. Stock is unchanged."
-        },
-        {
-          "v": "17",
-          "name": "Create Order - unknown product",
-          "method": "POST",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Order is CANCELLED: product not found\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CANCELLED\");\n  pw.expect(pw.response.body.statusReason).toInclude(\"Product not found\");\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"NO-SUCH-PRODUCT\",\n      \"quantity\": 1\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "A SKU the product service doesn't know. Saved as CANCELLED; returns 422."
-        },
-        {
-          "v": "17",
-          "name": "Create Order - validation error",
-          "method": "POST",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"\",\n      \"quantity\": 0\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Blank SKU and zero quantity. Rejected before anything is saved: 400."
-        },
-        {
-          "v": "17",
-          "name": "Create Order - missing billingAddress (400)",
-          "method": "POST",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 400\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 1\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "No billingAddress: rejected with 400 before anything is saved."
-        },
-        {
-          "v": "17",
-          "name": "Create Order as admin (403)",
-          "method": "POST",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 403\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 2\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Admins cannot place orders (USER only): 403 Forbidden."
-        },
-        {
-          "v": "17",
-          "name": "List Orders - first page",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [
-            {
-              "key": "limit",
-              "value": "2",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"orderNextCursor\", pw.response.body.nextCursor || \"\");",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Cursor pagination: first page of 2. Saves nextCursor into <<orderNextCursor>>."
-        },
-        {
-          "v": "17",
-          "name": "List Orders (admin)",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [
-            {
-              "key": "limit",
-              "value": "20",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Admin sees orders of all customers."
-        },
-        {
-          "v": "17",
-          "name": "List Orders - next page",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [
-            {
-              "key": "limit",
-              "value": "2",
-              "active": true,
-              "description": ""
-            },
-            {
-              "key": "cursor",
-              "value": "<<orderNextCursor>>",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"orderNextCursor\", pw.response.body.nextCursor || \"\");",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Next page, using the nextCursor saved by the previous request. Repeat until hasMore is false."
-        },
-        {
-          "v": "17",
-          "name": "List Orders - invalid cursor",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [
-            {
-              "key": "cursor",
-              "value": "not-a-cursor",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "A cursor that was not issued by the API. Expects 400 'Invalid Cursor'."
-        },
-        {
-          "v": "17",
-          "name": "List Orders - limit too large",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders",
-          "params": [
-            {
-              "key": "limit",
-              "value": "101",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "limit must be 1-100. Expects 400."
-        },
-        {
-          "v": "17",
-          "name": "Get Order by Number",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested order\", () => {\n  pw.expect(pw.response.body.orderNumber).toBe(pw.env.get(\"orderNumber\"));\n});\npw.test(\"Order is still CONFIRMED\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Returns one of the user's own orders. Run 'Create Order' first to populate <<orderNumber>>. 404 if it does not exist or belongs to another customer."
-        },
-        {
-          "v": "17",
-          "name": "Get Order - other user (404)",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 404\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Order Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Order Not Found\");\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<otherUserToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Another customer's order looks like it does not exist: 404 Order Not Found. Run 'Setup - register second user' and 'Create Order' first."
-        },
-        {
-          "v": "17",
-          "name": "Delete Order as user (403)",
-          "method": "DELETE",
-          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 403\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<accessToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Only admins may delete orders: 403 Forbidden. Run before 'Delete Order'."
-        },
-        {
-          "v": "17",
-          "name": "Delete Order",
-          "method": "DELETE",
-          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Admin only. Deletes the order and its line items. Returns 204, or 404 if it does not exist."
-        },
-        {
-          "v": "17",
-          "name": "Get Order - not found",
-          "method": "GET",
-          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Order Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Order Not Found\");\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Run after 'Delete Order': as admin, the deleted order must now return 404 problem detail."
-        }
-      ],
-      "auth": {
-        "authType": "inherit",
-        "authActive": true
-      },
-      "headers": [],
-      "variables": [],
-      "preRequestScript": "",
-      "testScript": ""
     },
     {
       "v": 12,
@@ -1911,37 +1819,101 @@
     },
     {
       "v": 12,
-      "name": "Customer Service",
-      "description": "CustomerController - /api/customers (port 8085). USER tokens use /me; ADMIN lists and reads any customer. Tokens (<<accessToken>>, <<adminToken>>) come from the auth service.",
+      "name": "Order Service",
+      "description": "OrderController - /api/orders (port 8081). Placing an order calls the product and inventory services, so all three must be running.",
       "folders": [],
       "requests": [
         {
           "v": "17",
-          "name": "Get my profile",
-          "method": "GET",
-          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "name": "Setup - create product",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
           "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"orderSkuCode\", \"ORD-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
           "auth": {
             "authType": "bearer",
             "authActive": true,
-            "token": "<<accessToken>>"
+            "token": "<<adminToken>>"
           },
           "body": {
-            "contentType": null,
-            "body": null
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"name\": \"Wireless Mouse\",\n  \"price\": 49.99,\n  \"currency\": \"USD\",\n  \"active\": true\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Returns the profile of the customer in the USER token's customerId claim."
+          "description": "Creates the product the orders below will buy (49.99 USD). Generates a unique <<orderSkuCode>>."
         },
         {
           "v": "17",
-          "name": "Update my profile",
-          "method": "PUT",
-          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "name": "Setup - register second user",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"otherUserEmail\", \"other\" + Date.now() + \"@example.com\");",
+          "testScript": "pw.test(\"Status is 201\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.env.set(\"otherUserToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<otherUserEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Bob Other\",\n  \"phone\": \"+1 555 0101\",\n  \"deliveryAddress\": {\n    \"line1\": \"2 Side St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Registers a second customer and stores their token as <<otherUserToken>>, used to show that one user cannot see another's order."
+        },
+        {
+          "v": "17",
+          "name": "Setup - create location",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"orderLocationCode\", \"ORDWH-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"<<orderLocationCode>>\",\n  \"name\": \"Warehouse <<orderLocationCode>>\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 1,\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a warehouse (priority 1). Generates a unique <<orderLocationCode>>."
+        },
+        {
+          "v": "17",
+          "name": "Setup - add stock",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
           "params": [],
           "headers": [
             {
@@ -1952,7 +1924,36 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"locationCode\": \"<<orderLocationCode>>\",\n  \"quantity\": 5\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Puts 5 units of <<orderSkuCode>> in stock at <<orderLocationCode>>."
+        },
+        {
+          "v": "17",
+          "name": "Create Order",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is CONFIRMED with the product's price\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n  pw.expect(pw.response.body.lineItems[0].price).toBe(49.99);\n  pw.expect(pw.response.body.lineItems[0].currency).toBe(\"USD\");\n});\npw.test(\"Supplied by the setup location\", () => {\n  pw.expect(pw.response.body.fulfilmentLocationCode).toBe(pw.env.get(\"orderLocationCode\"));\n});\npw.test(\"Order carries the customerId and both addresses\", () => {\n  pw.expect(pw.response.body.customerId !== null).toBe(true);\n  pw.expect(pw.response.body.shippingAddress.city).toBe(\"Austin\");\n  pw.expect(pw.response.body.billingAddress.city).toBe(\"Austin\");\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
           "auth": {
             "authType": "bearer",
             "authActive": true,
@@ -1960,18 +1961,221 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 123 4567\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"line2\": null,\n    \"city\": \"Springfield\",\n    \"state\": \"IL\",\n    \"postalCode\": \"62701\",\n    \"country\": \"US\"\n  }\n}"
+            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 2\n    }\n  ]\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Updates name, phone and delivery address. Email cannot be changed (any email field is ignored)."
+          "description": "As the registered user (<<accessToken>> from Auth Service > Register), places an order for 2 units with shipping and billing addresses. The order service fetches the product (price 49.99 USD), deducts stock in inventory from one location (recorded as fulfilmentLocationCode), and returns 201 with status CONFIRMED, owned by the user's customerId. Saves <<orderNumber>>."
         },
         {
           "v": "17",
-          "name": "List customers (admin)",
+          "name": "Verify stock deducted",
           "method": "GET",
-          "endpoint": "<<customerBaseUrl>>/api/customers?limit=20",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<orderSkuCode>>",
           "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"3 units left\", () => {\n  pw.expect(pw.response.body.quantity).toBe(3);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Stock was 5, the order took 2: expects 3."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - insufficient stock",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Order is CANCELLED for insufficient stock\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CANCELLED\");\n  pw.expect(pw.response.body.statusReason).toInclude(\"Insufficient stock\");\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 100\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "More than in stock. The order is saved as CANCELLED with a reason; returns 422. Stock is unchanged."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - unknown product",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Order is CANCELLED: product not found\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CANCELLED\");\n  pw.expect(pw.response.body.statusReason).toInclude(\"Product not found\");\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"NO-SUCH-PRODUCT\",\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A SKU the product service doesn't know. Saved as CANCELLED; returns 422."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - validation error",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"\",\n      \"quantity\": 0\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Blank SKU and zero quantity. Rejected before anything is saved: 400."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - missing billingAddress (400)",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "No billingAddress: rejected with 400 before anything is saved."
+        },
+        {
+          "v": "17",
+          "name": "Create Order as admin (403)",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 403\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"shippingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"billingAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"73301\",\n    \"country\": \"US\"\n  },\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 2\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Admins cannot place orders (USER only): 403 Forbidden."
+        },
+        {
+          "v": "17",
+          "name": "List Orders - first page",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"orderNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Cursor pagination: first page of 2. Saves nextCursor into <<orderNextCursor>>."
+        },
+        {
+          "v": "17",
+          "name": "List Orders (admin)",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "20",
+              "active": true,
+              "description": ""
+            }
+          ],
           "headers": [],
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
@@ -1986,21 +2190,34 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "ADMIN only. Cursor pagination: pass nextCursor as ?cursor= for the next page."
+          "description": "Admin sees orders of all customers."
         },
         {
           "v": "17",
-          "name": "Get customer (admin)",
+          "name": "List Orders - next page",
           "method": "GET",
-          "endpoint": "<<customerBaseUrl>>/api/customers/1",
-          "params": [],
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<<orderNextCursor>>",
+              "active": true,
+              "description": ""
+            }
+          ],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"orderNextCursor\", pw.response.body.nextCursor || \"\");",
           "auth": {
             "authType": "bearer",
             "authActive": true,
-            "token": "<<adminToken>>"
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -2008,20 +2225,79 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "ADMIN only."
+          "description": "Next page, using the nextCursor saved by the previous request. Repeat until hasMore is false."
         },
         {
           "v": "17",
-          "name": "Get my profile - no token (401)",
+          "name": "List Orders - invalid cursor",
           "method": "GET",
-          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "cursor",
+              "value": "not-a-cursor",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A cursor that was not issued by the API. Expects 400 'Invalid Cursor'."
+        },
+        {
+          "v": "17",
+          "name": "List Orders - limit too large",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [
+            {
+              "key": "limit",
+              "value": "101",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "limit must be 1-100. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Get Order by Number",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
           "params": [],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 401\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested order\", () => {\n  pw.expect(pw.response.body.orderNumber).toBe(pw.env.get(\"orderNumber\"));\n});\npw.test(\"Order is still CONFIRMED\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n});",
           "auth": {
-            "authType": "none",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -2029,13 +2305,35 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Negative case: no Authorization header."
+          "description": "Returns one of the user's own orders. Run 'Create Order' first to populate <<orderNumber>>. 404 if it does not exist or belongs to another customer."
         },
         {
           "v": "17",
-          "name": "List customers as user (403)",
+          "name": "Get Order - other user (404)",
           "method": "GET",
-          "endpoint": "<<customerBaseUrl>>/api/customers",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 404\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Order Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Order Not Found\");\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<otherUserToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Another customer's order looks like it does not exist: 404 Order Not Found. Run 'Setup - register second user' and 'Create Order' first."
+        },
+        {
+          "v": "17",
+          "name": "Delete Order as user (403)",
+          "method": "DELETE",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
           "params": [],
           "headers": [],
           "preRequestScript": "",
@@ -2051,250 +2349,17 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Negative case: a USER token cannot list customers."
-        }
-      ],
-      "auth": {
-        "authType": "inherit",
-        "authActive": true
-      },
-      "headers": [],
-      "variables": [],
-      "preRequestScript": "",
-      "testScript": ""
-    },
-    {
-      "v": 12,
-      "name": "Auth Service",
-      "description": "Registration, login, service tokens and the public signing keys (port 8086). Run top to bottom: Register stores <<accessToken>>, Admin login stores <<adminToken>>.",
-      "folders": [],
-      "requests": [
-        {
-          "v": "17",
-          "name": "Register",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/register",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "pw.env.set(\"registerEmail\", \"user\" + Date.now() + \"@example.com\");",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Creates the account and the customer profile, returns a USER token and stores it as <<accessToken>>. Generates a unique <<registerEmail>>."
+          "description": "Only admins may delete orders: 403 Forbidden. Run before 'Delete Order'."
         },
         {
           "v": "17",
-          "name": "Login",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/login",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\"\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Logs in the account created by Register (email is case-insensitive). Run Register first."
-        },
-        {
-          "v": "17",
-          "name": "Admin login",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/login",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"adminToken\", pw.response.body.accessToken);",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"admin@oletrex.local\",\n  \"password\": \"Admin123!\"\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Logs in the first admin (ADMIN_EMAIL / ADMIN_PASSWORD from .env, dev defaults shown) and stores <<adminToken>>."
-        },
-        {
-          "v": "17",
-          "name": "Service token (order)",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/token",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});\npw.env.set(\"serviceToken\", pw.response.body.accessToken);",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"clientId\": \"order-service\",\n  \"clientSecret\": \"order-dev-secret\"\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Client-credentials token for the order service (SERVICE role). Stores <<serviceToken>>, used by the inventory Deductions requests."
-        },
-        {
-          "v": "17",
-          "name": "JWKS",
-          "method": "GET",
-          "endpoint": "<<authBaseUrl>>/.well-known/jwks.json",
+          "name": "Delete Order",
+          "method": "DELETE",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
           "params": [],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Publishes at least one RSA key\", () => {\n  pw.expect(pw.response.body.keys.length).toBeGreaterThan(0);\n});",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Public signing keys the other services use to verify tokens."
-        },
-        {
-          "v": "17",
-          "name": "Register - duplicate email (409)",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/register",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Same email as Register; run Register first."
-        },
-        {
-          "v": "17",
-          "name": "Login - wrong password (401)",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/login",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 401 Unauthorized\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});\npw.test(\"Message does not reveal which part was wrong\", () => {\n  pw.expect(pw.response.body.detail).toBe(\"Invalid email or password\");\n});",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"wrong-password\"\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Wrong password and unknown email give the same answer."
-        },
-        {
-          "v": "17",
-          "name": "Register - short password (400)",
-          "method": "POST",
-          "endpoint": "<<authBaseUrl>>/api/auth/register",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"email\": \"short@example.com\",\n  \"password\": \"short\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Password must be 8-100 characters."
-        },
-        {
-          "v": "17",
-          "name": "List users (admin)",
-          "method": "GET",
-          "endpoint": "<<authBaseUrl>>/api/auth/users?limit=20",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\nconst target = pw.response.body.items.find((u) => u.role === \"USER\");\nif (target) {\n  pw.env.set(\"userId\", String(target.id));\n}",
+          "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
           "auth": {
             "authType": "bearer",
             "authActive": true,
@@ -2306,94 +2371,29 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "ADMIN only. Cursor pagination: pass nextCursor as ?cursor= for the next page. Stores the first USER account's id as <<userId>> for the requests below. Run Admin login first."
+          "description": "Admin only. Deletes the order and its line items. Returns 204, or 404 if it does not exist."
         },
         {
           "v": "17",
-          "name": "Promote user to admin",
-          "method": "PUT",
-          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/role",
+          "name": "Get Order - not found",
+          "method": "GET",
+          "endpoint": "<<orderBaseUrl>>/api/orders/<<orderNumber>>",
           "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
+          "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Role is ADMIN\", () => {\n  pw.expect(pw.response.body.role).toBe(\"ADMIN\");\n});",
+          "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Order Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Order Not Found\");\n});",
           "auth": {
             "authType": "bearer",
             "authActive": true,
             "token": "<<adminToken>>"
           },
           "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"role\": \"ADMIN\"\n}"
+            "contentType": null,
+            "body": null
           },
           "requestVariables": [],
           "responses": {},
-          "description": "ADMIN only. Changes the role of <<userId>> (set by List users). You cannot demote yourself (409). Takes effect when the user next logs in."
-        },
-        {
-          "v": "17",
-          "name": "Disable user",
-          "method": "PUT",
-          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/enabled",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"User is disabled\", () => {\n  pw.expect(pw.response.body.enabled).toBe(false);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"enabled\": false\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "ADMIN only. A disabled user cannot log in. You cannot disable yourself (409)."
-        },
-        {
-          "v": "17",
-          "name": "Enable user",
-          "method": "PUT",
-          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/enabled",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"User is enabled\", () => {\n  pw.expect(pw.response.body.enabled).toBe(true);\n});",
-          "auth": {
-            "authType": "bearer",
-            "authActive": true,
-            "token": "<<adminToken>>"
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"enabled\": true\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "ADMIN only. Re-enables an account disabled with Disable user."
+          "description": "Run after 'Delete Order': as admin, the deleted order must now return 404 problem detail."
         }
       ],
       "auth": {
@@ -2447,24 +2447,6 @@
       "key": "authBaseUrl",
       "initialValue": "http://localhost:8086",
       "currentValue": "http://localhost:8086",
-      "secret": false
-    },
-    {
-      "key": "accessToken",
-      "initialValue": "",
-      "currentValue": "",
-      "secret": false
-    },
-    {
-      "key": "adminToken",
-      "initialValue": "",
-      "currentValue": "",
-      "secret": false
-    },
-    {
-      "key": "otherUserToken",
-      "initialValue": "",
-      "currentValue": "",
       "secret": false
     }
   ],

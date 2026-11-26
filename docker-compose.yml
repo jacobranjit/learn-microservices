@@ -21,6 +21,8 @@ x-java-service: &java-service
     # Same credentials as the postgres container below (from .env; defaults are for local dev only).
     DB_USERNAME: "${POSTGRES_USER:-oletrex}"
     DB_PASSWORD: "${POSTGRES_PASSWORD:-oletrex}"
+    # Token issuer every service checks (must match the auth service).
+    AUTH_ISSUER: "${AUTH_ISSUER:-oletrex-auth}"
 
 services:
   postgres:
@@ -174,7 +176,6 @@ services:
       ORDER_SERVICE_SECRET: "${ORDER_SERVICE_SECRET:-order-dev-secret}"
       INVENTORY_SERVICE_SECRET: "${INVENTORY_SERVICE_SECRET:-inventory-dev-secret}"
       JWT_TTL: "${JWT_TTL:-1h}"
-      AUTH_ISSUER: "${AUTH_ISSUER:-oletrex-auth}"
     ports:
       - "${AUTH_PORT:-8086}:8086"
     depends_on:

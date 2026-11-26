@@ -56,6 +56,19 @@ class AuthControllerTest {
     }
 
     @Test
+    void registerWithPaddedMixedCaseEmail201() throws Exception {
+        when(accountService.register(any())).thenReturn(TokenResponse.bearer("tok", 3600));
+
+        register(VALID_REGISTER.replace("alice@example.com", " Alice@Example.COM "))
+                .andExpect(status().isCreated());
+
+        org.mockito.ArgumentCaptor<com.mc.oletrex.auth.dto.RegisterRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(com.mc.oletrex.auth.dto.RegisterRequest.class);
+        org.mockito.Mockito.verify(accountService).register(captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().email()).isEqualTo("Alice@Example.COM");
+    }
+
+    @Test
     void registerShortPasswordIs400() throws Exception {
         register(VALID_REGISTER.replace("password1", "short"))
                 .andExpect(status().isBadRequest());
@@ -82,7 +95,11 @@ class AuthControllerTest {
     void registerCustomerServiceDownIs503() throws Exception {
         when(accountService.register(any())).thenThrow(new CustomerServiceUnavailableException("down", null));
 
-        register(VALID_REGISTER).andExpect(status().isServiceUnavailable());
+        register(VALID_REGISTER)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Service Unavailable"));
     }
 
     @Test

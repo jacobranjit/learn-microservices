@@ -3,6 +3,8 @@ package com.mc.oletrex.auth.client;
 import com.mc.oletrex.auth.dto.RegisterRequest;
 import com.mc.oletrex.auth.exception.EmailAlreadyRegisteredException;
 import com.mc.oletrex.auth.token.JwtIssuer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -19,6 +21,7 @@ import java.util.Map;
 @Component
 public class CustomerClient {
 
+    private static final Logger log = LoggerFactory.getLogger(CustomerClient.class);
     private static final String CLIENT_ID = "auth-service";
     /** Renew the cached service token this long before it expires. */
     private static final Duration REFRESH_MARGIN = Duration.ofSeconds(60);
@@ -62,6 +65,7 @@ public class CustomerClient {
         } catch (HttpClientErrorException.Conflict e) {
             throw new EmailAlreadyRegisteredException("Email already registered");
         } catch (RestClientException e) {
+            log.warn("Customer service create failed", e);
             throw new CustomerServiceUnavailableException("Customer service is unavailable", e);
         }
     }
@@ -74,6 +78,7 @@ public class CustomerClient {
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientException e) {
+            log.warn("Customer service delete failed", e);
             throw new CustomerServiceUnavailableException("Customer service is unavailable", e);
         }
     }

@@ -14,4 +14,7 @@ public record RegisterRequest(
         @NotBlank @Pattern(regexp = "^\\+?[0-9 ()-]{7,20}$", message = "must be a valid phone number") String phone,
         @NotNull @Valid AddressDto deliveryAddress
 ) {
+    public RegisterRequest {
+        email = email == null ? null : email.strip();
+    }
 }

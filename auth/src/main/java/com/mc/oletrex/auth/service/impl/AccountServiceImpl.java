@@ -11,6 +11,8 @@ import com.mc.oletrex.auth.model.UserAccount;
 import com.mc.oletrex.auth.repository.UserAccountRepository;
 import com.mc.oletrex.auth.service.AccountService;
 import com.mc.oletrex.auth.token.JwtIssuer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,7 @@ import java.util.Locale;
 @Service
 public class AccountServiceImpl implements AccountService {
 
+    private static final Logger log = LoggerFactory.getLogger(AccountServiceImpl.class);
     private static final String INVALID = "Invalid email or password";
 
     private final UserAccountRepository repository;
@@ -41,6 +44,11 @@ public class AccountServiceImpl implements AccountService {
         this.dummyHash = passwordEncoder.encode("not-a-real-password");
     }
 
+    /**
+     * Known limitation (no idempotency): if the customer service commits but its response is lost
+     * (e.g. a read timeout), the account is deleted while an orphan customer row remains. Retries then
+     * get 409 from the customer service and the orphan needs manual cleanup.
+     */
     @Override
     public TokenResponse register(RegisterRequest request) {
         String email = normalise(request.email());
@@ -54,7 +62,7 @@ public class AccountServiceImpl implements AccountService {
         try {
             customerId = customerClient.createCustomer(account.getId(), withEmail(request, email));
         } catch (RuntimeException e) {
-            repository.delete(account);
+            deleteAccountQuietly(account, e);
             throw e;
         }
 
@@ -62,8 +70,13 @@ public class AccountServiceImpl implements AccountService {
             account.setCustomerId(customerId);
             repository.saveAndFlush(account);
         } catch (RuntimeException e) {
-            customerClient.deleteCustomer(customerId);
-            repository.delete(account);
+            try {
+                customerClient.deleteCustomer(customerId);
+            } catch (RuntimeException compensation) {
+                log.error("Could not delete customer {} while rolling back registration", customerId, compensation);
+                e.addSuppressed(compensation);
+            }
+            deleteAccountQuietly(account, e);
             throw e;
         }
         return jwtIssuer.issueUserToken(account.getId(), email, Role.USER, customerId);
@@ -78,6 +91,16 @@ public class AccountServiceImpl implements AccountService {
             throw new InvalidCredentialsException(INVALID);
         }
         return jwtIssuer.issueUserToken(account.getId(), account.getEmail(), account.getRole(), account.getCustomerId());
+    }
+
+    /** Always attempts the delete; a failure is logged and attached to the original exception. */
+    private void deleteAccountQuietly(UserAccount account, RuntimeException original) {
+        try {
+            repository.delete(account);
+        } catch (RuntimeException compensation) {
+            log.error("Could not delete account {} while rolling back registration", account.getId(), compensation);
+            original.addSuppressed(compensation);
+        }
     }
 
     private static String normalise(String email) {

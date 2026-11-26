@@ -148,6 +148,40 @@ class AccountServiceImplTest {
         verifyNoInteractions(jwtIssuer);
     }
 
+    @Test
+    void deleteCustomerFailsStillDeletesAccount() {
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("boom");
+        CustomerServiceUnavailableException compensation = new CustomerServiceUnavailableException("down", null);
+        when(repository.saveAndFlush(any(UserAccount.class)))
+                .thenAnswer(inv -> {
+                    UserAccount a = inv.getArgument(0);
+                    ReflectionTestUtils.setField(a, "id", 5L);
+                    return a;
+                })
+                .thenThrow(failure);
+        when(customerClient.createCustomer(eq(5L), any())).thenReturn(7L);
+        org.mockito.Mockito.doThrow(compensation).when(customerClient).deleteCustomer(7L);
+
+        assertThatThrownBy(() -> service.register(request("alice@example.com")))
+                .isSameAs(failure)
+                .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(compensation));
+
+        verify(repository).delete(any(UserAccount.class));
+    }
+
+    @Test
+    void accountDeleteFailsOriginalErrorStillThrown() {
+        saveAssignsId();
+        CustomerServiceUnavailableException down = new CustomerServiceUnavailableException("down", null);
+        IllegalStateException dbDown = new IllegalStateException("db");
+        when(customerClient.createCustomer(anyLong(), any())).thenThrow(down);
+        org.mockito.Mockito.doThrow(dbDown).when(repository).delete(any(UserAccount.class));
+
+        assertThatThrownBy(() -> service.register(request("alice@example.com")))
+                .isSameAs(down)
+                .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(dbDown));
+    }
+
     private UserAccount stored(boolean enabled) {
         UserAccount a = new UserAccount("alice@example.com", encoder.encode("password1"), Role.USER, enabled, 7L);
         ReflectionTestUtils.setField(a, "id", 5L);

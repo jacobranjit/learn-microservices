@@ -1611,6 +1611,160 @@
       "variables": [],
       "preRequestScript": "",
       "testScript": ""
+    },
+    {
+      "v": 12,
+      "name": "Customer Service",
+      "description": "CustomerController - /api/customers (port 8085). USER tokens use /me; ADMIN lists and reads any customer. Tokens (<<accessToken>>, <<adminToken>>) come from the auth service.",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Get my profile",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Returns the profile of the customer in the USER token's customerId claim."
+        },
+        {
+          "v": "17",
+          "name": "Update my profile",
+          "method": "PUT",
+          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 123 4567\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"line2\": null,\n    \"city\": \"Springfield\",\n    \"state\": \"IL\",\n    \"postalCode\": \"62701\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Updates name, phone and delivery address. Email cannot be changed (any email field is ignored)."
+        },
+        {
+          "v": "17",
+          "name": "List customers (admin)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers?limit=20",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Cursor pagination: pass nextCursor as ?cursor= for the next page."
+        },
+        {
+          "v": "17",
+          "name": "Get customer (admin)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers/1",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only."
+        },
+        {
+          "v": "17",
+          "name": "Get my profile - no token (401)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers/me",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 401\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Negative case: no Authorization header."
+        },
+        {
+          "v": "17",
+          "name": "List customers as user (403)",
+          "method": "GET",
+          "endpoint": "<<customerBaseUrl>>/api/customers",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 403\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Negative case: a USER token cannot list customers."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
     }
   ],
   "requests": [],
@@ -1642,6 +1796,12 @@
       "key": "masterDataBaseUrl",
       "initialValue": "http://localhost:8084",
       "currentValue": "http://localhost:8084",
+      "secret": false
+    },
+    {
+      "key": "customerBaseUrl",
+      "initialValue": "http://localhost:8085",
+      "currentValue": "http://localhost:8085",
       "secret": false
     }
   ],

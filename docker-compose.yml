@@ -1,4 +1,4 @@
-# Oletrex microservices: PostgreSQL + product, inventory and order services
+# Oletrex microservices: PostgreSQL + product, inventory, order and customer services
 # (+ generate-master-data on demand), each in its own container with CPU and RAM limits.
 #
 #   Everything:          docker compose up -d --build
@@ -131,6 +131,32 @@ services:
         limits:
           cpus: "${ORDER_CPUS:-1.0}"
           memory: "${ORDER_MEMORY:-1G}"
+
+  customer:
+    <<: *java-service
+    build: ./customer
+    image: oletrex/customer:latest
+    container_name: oletrex-customer
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/customer_db
+      AUTH_JWKS_URL: http://auth:8086/.well-known/jwks.json
+    ports:
+      - "${CUSTOMER_PORT:-8085}:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "${CUSTOMER_CPUS:-0.5}"
+          memory: "${CUSTOMER_MEMORY:-768M}"
 
   # Only started with --profile seed. Populates the CSV master data once product and
   # inventory are healthy, then stays up so populate can be re-run on port 8084.

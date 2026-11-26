@@ -1,8 +1,16 @@
 package com.mc.oletrex.order.service.impl;
 
+import com.mc.oletrex.order.client.DownstreamServiceException;
+import com.mc.oletrex.order.client.InsufficientStockException;
+import com.mc.oletrex.order.client.InventoryClient;
+import com.mc.oletrex.order.client.ProductClient;
+import com.mc.oletrex.order.client.ProductInfo;
+import com.mc.oletrex.order.client.StockItem;
 import com.mc.oletrex.order.dto.CursorPage;
 import com.mc.oletrex.order.dto.OrderLineItemRequest;
 import com.mc.oletrex.order.dto.OrderLineItemResponse;
+import com.mc.oletrex.order.dto.OrderPlacementResult;
+import com.mc.oletrex.order.dto.OrderPlacementResult.Outcome;
 import com.mc.oletrex.order.dto.OrderRequest;
 import com.mc.oletrex.order.dto.OrderResponse;
 import com.mc.oletrex.order.exception.OrderNotFoundException;
@@ -14,10 +22,14 @@ import com.mc.oletrex.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -26,16 +38,77 @@ import java.util.UUID;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final ProductClient productClient;
+    private final InventoryClient inventoryClient;
 
     @Override
-    public OrderResponse createOrder(OrderRequest request) {
+    // No surrounding transaction: remote calls must not hold a DB connection open, and the
+    // PLACED order must be saved even if a later step fails. Each save is its own transaction.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public OrderPlacementResult createOrder(OrderRequest request) {
         Order order = Order.builder()
                 .orderNumber(UUID.randomUUID().toString())
                 .status(OrderStatus.PLACED)
                 .createdAt(Instant.now())
                 .build();
         request.lineItems().forEach(item -> order.addLineItem(toEntity(item)));
+        Order placed = orderRepository.save(order);
+
+        try {
+            priceLineItems(placed);                        // 1. product service
+            inventoryClient.deductStock(placed.getLineItems().stream()
+                    .map(i -> new StockItem(i.getSkuCode(), i.getQuantity()))
+                    .toList());                            // 2. inventory service
+            placed.setStatus(OrderStatus.CONFIRMED);       // 3. done
+            return new OrderPlacementResult(toResponse(orderRepository.save(placed)), Outcome.CONFIRMED);
+        } catch (OrderRejectedException | InsufficientStockException e) {
+            return new OrderPlacementResult(cancel(placed, e.getMessage()), Outcome.REJECTED);
+        } catch (DownstreamServiceException e) {
+            return new OrderPlacementResult(cancel(placed, e.getMessage()), Outcome.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    /** Copies price and currency from the product service onto each line item. */
+    private void priceLineItems(Order order) {
+        Map<String, ProductInfo> products = new LinkedHashMap<>();
+        List<String> problems = new ArrayList<>();
+        for (OrderLineItem item : order.getLineItems()) {
+            String sku = item.getSkuCode();
+            if (products.containsKey(sku)) {
+                continue;
+            }
+            ProductInfo product = productClient.findProduct(sku).orElse(null);
+            if (product == null) {
+                problems.add("Product not found: " + sku);
+            } else if (!product.active()) {
+                problems.add("Product is not active: " + sku);
+            }
+            products.put(sku, product);
+        }
+        if (!problems.isEmpty()) {
+            throw new OrderRejectedException(String.join("; ", problems));
+        }
+        if (products.values().stream().map(ProductInfo::currency).distinct().count() > 1) {
+            throw new OrderRejectedException("All products in an order must have the same currency");
+        }
+        for (OrderLineItem item : order.getLineItems()) {
+            ProductInfo product = products.get(item.getSkuCode());
+            item.setPrice(product.price());
+            item.setCurrency(product.currency());
+        }
+    }
+
+    private OrderResponse cancel(Order order, String reason) {
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setStatusReason(reason);
         return toResponse(orderRepository.save(order));
+    }
+
+    /** A business rule failed while placing the order (not a technical error). */
+    private static class OrderRejectedException extends RuntimeException {
+        OrderRejectedException(String message) {
+            super(message);
+        }
     }
 
     @Override
@@ -80,15 +153,15 @@ public class OrderServiceImpl implements OrderService {
     private OrderLineItem toEntity(OrderLineItemRequest item) {
         return OrderLineItem.builder()
                 .skuCode(item.skuCode())
-                .price(item.price())
                 .quantity(item.quantity())
                 .build();
     }
 
     private OrderResponse toResponse(Order order) {
         List<OrderLineItemResponse> items = order.getLineItems().stream()
-                .map(i -> new OrderLineItemResponse(i.getSkuCode(), i.getPrice(), i.getQuantity()))
+                .map(i -> new OrderLineItemResponse(i.getSkuCode(), i.getPrice(), i.getCurrency(), i.getQuantity()))
                 .toList();
-        return new OrderResponse(order.getOrderNumber(), order.getStatus(), order.getCreatedAt(), items);
+        return new OrderResponse(order.getOrderNumber(), order.getStatus(), order.getStatusReason(),
+                order.getCreatedAt(), items);
     }
 }

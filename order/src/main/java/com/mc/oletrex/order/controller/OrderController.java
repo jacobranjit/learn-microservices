@@ -1,6 +1,7 @@
 package com.mc.oletrex.order.controller;
 
 import com.mc.oletrex.order.dto.CursorPage;
+import com.mc.oletrex.order.dto.OrderPlacementResult;
 import com.mc.oletrex.order.dto.OrderRequest;
 import com.mc.oletrex.order.dto.OrderResponse;
 import com.mc.oletrex.order.service.OrderService;
@@ -14,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,19 +38,30 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @Operation(summary = "Create an order",
+    @Operation(summary = "Place an order",
+            description = "Saves the order as PLACED, fetches each product from the product service "
+                    + "(must exist and be active; its current price is used), deducts stock in the inventory "
+                    + "service, then marks the order CONFIRMED. If a step fails the order is kept as CANCELLED "
+                    + "with statusReason. The order is saved in every case, so Location is always set.",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "Order created; Location header points to it"),
-                    @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+                    @ApiResponse(responseCode = "201", description = "Order CONFIRMED"),
+                    @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
+                    @ApiResponse(responseCode = "422", description = "Order CANCELLED: unknown or inactive product, mixed currencies, or insufficient stock (see statusReason)"),
+                    @ApiResponse(responseCode = "503", description = "Order CANCELLED: product or inventory service unavailable (see statusReason)")
             })
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {
-        OrderResponse created = orderService.createOrder(request);
+        OrderPlacementResult result = orderService.createOrder(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{orderNumber}")
-                .buildAndExpand(created.orderNumber())
+                .buildAndExpand(result.order().orderNumber())
                 .toUri();
-        return ResponseEntity.created(location).body(created);
+        HttpStatus status = switch (result.outcome()) {
+            case CONFIRMED -> HttpStatus.CREATED;
+            case REJECTED -> HttpStatus.UNPROCESSABLE_CONTENT;
+            case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        return ResponseEntity.status(status).location(location).body(result.order());
     }
 
     @Operation(summary = "Get an order by order number",

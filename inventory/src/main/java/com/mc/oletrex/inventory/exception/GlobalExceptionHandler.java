@@ -1,5 +1,6 @@
 package com.mc.oletrex.inventory.exception;
 
+import com.mc.oletrex.inventory.client.DownstreamServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,6 +24,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleInventoryNotFound(InventoryNotFoundException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Inventory Not Found");
+        return problem;
+    }
+
+    @ExceptionHandler(UnknownProductException.class)
+    public ProblemDetail handleUnknownProduct(UnknownProductException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+        problem.setTitle("Unknown Product");
+        return problem;
+    }
+
+    @ExceptionHandler(DownstreamServiceException.class)
+    public ProblemDetail handleDownstreamService(DownstreamServiceException ex) {
+        log.warn("{}: {}", ex.getMessage(), ex.getCause() == null ? "" : ex.getCause().getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        problem.setTitle("Service Unavailable");
+        return problem;
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ProblemDetail handleInsufficientStock(InsufficientStockException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Insufficient Stock");
+        problem.setProperty("shortages", ex.getShortages());
         return problem;
     }
 

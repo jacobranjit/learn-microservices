@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public record OrderLineItemResponse(
         String skuCode,
         BigDecimal price,
+        String currency,
         Integer quantity
 ) {
 }

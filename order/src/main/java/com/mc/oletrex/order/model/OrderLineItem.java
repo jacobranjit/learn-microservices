@@ -34,9 +34,14 @@ public class OrderLineItem {
     @Column(nullable = false)
     private String skuCode;
 
-    // Price captured at time of order, independent of later product price changes.
-    @Column(nullable = false, precision = 19, scale = 2)
+    // Unit price copied from the product service when the order is placed, so later
+    // price changes don't affect this order. Null if the order was cancelled before pricing.
+    @Column(precision = 19, scale = 2)
     private BigDecimal price;
+
+    /** ISO 4217 code of {@link #price}, copied from the product. */
+    @Column(length = 3)
+    private String currency;
 
     @Column(nullable = false)
     private Integer quantity;

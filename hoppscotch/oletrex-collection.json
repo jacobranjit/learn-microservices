@@ -6,9 +6,65 @@
     {
       "v": 12,
       "name": "Order Service",
-      "description": "OrderController - /api/orders (port 8081)",
+      "description": "OrderController - /api/orders (port 8081). Placing an order calls the product and inventory services, so all three must be running.",
       "folders": [],
       "requests": [
+        {
+          "v": "17",
+          "name": "Setup - create product",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"orderSkuCode\", \"ORD-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"name\": \"Wireless Mouse\",\n  \"price\": 49.99,\n  \"currency\": \"USD\",\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates the product the orders below will buy (49.99 USD). Generates a unique <<orderSkuCode>>."
+        },
+        {
+          "v": "17",
+          "name": "Setup - add stock",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"quantity\": 5\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Puts 5 units of <<orderSkuCode>> in stock."
+        },
         {
           "v": "17",
           "name": "Create Order",
@@ -24,18 +80,95 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is PLACED with 2 line items\", () => {\n  pw.expect(pw.response.body.status).toBe(\"PLACED\");\n  pw.expect(pw.response.body.lineItems.length).toBe(2);\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is CONFIRMED with the product's price\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n  pw.expect(pw.response.body.lineItems[0].price).toBe(49.99);\n  pw.expect(pw.response.body.lineItems[0].currency).toBe(\"USD\");\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
           "auth": {
             "authType": "inherit",
             "authActive": true
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"SKU-1\",\n      \"price\": 9.99,\n      \"quantity\": 2\n    },\n    {\n      \"skuCode\": \"SKU-2\",\n      \"price\": 5.0,\n      \"quantity\": 1\n    }\n  ]\n}"
+            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 2\n    }\n  ]\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Creates an order with status PLACED. Returns 201 with a Location header. Saves the new orderNumber into the `orderNumber` environment variable for the requests below."
+          "description": "Places an order for 2 units. The order service fetches the product (price 49.99 USD), deducts stock in inventory, and returns 201 with status CONFIRMED. Saves <<orderNumber>>."
+        },
+        {
+          "v": "17",
+          "name": "Verify stock deducted",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<orderSkuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"3 units left\", () => {\n  pw.expect(pw.response.body.quantity).toBe(3);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Stock was 5, the order took 2: expects 3."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - insufficient stock",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Order is CANCELLED for insufficient stock\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CANCELLED\");\n  pw.expect(pw.response.body.statusReason).toInclude(\"Insufficient stock\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"<<orderSkuCode>>\",\n      \"quantity\": 100\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "More than in stock. The order is saved as CANCELLED with a reason; returns 422. Stock is unchanged."
+        },
+        {
+          "v": "17",
+          "name": "Create Order - unknown product",
+          "method": "POST",
+          "endpoint": "<<orderBaseUrl>>/api/orders",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Order is CANCELLED: product not found\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CANCELLED\");\n  pw.expect(pw.response.body.statusReason).toInclude(\"Product not found\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"NO-SUCH-PRODUCT\",\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A SKU the product service doesn't know. Saved as CANCELLED; returns 422."
         },
         {
           "v": "17",
@@ -59,11 +192,11 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"\",\n      \"price\": -1,\n      \"quantity\": 0\n    }\n  ]\n}"
+            "body": "{\n  \"lineItems\": [\n    {\n      \"skuCode\": \"\",\n      \"quantity\": 0\n    }\n  ]\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Invalid payload (blank skuCode, negative price, zero quantity). Expects 400 problem detail."
+          "description": "Blank SKU and zero quantity. Rejected before anything is saved: 400."
         },
         {
           "v": "17",
@@ -191,7 +324,7 @@
           "params": [],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested order\", () => {\n  pw.expect(pw.response.body.orderNumber).toBe(pw.env.get(\"orderNumber\"));\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested order\", () => {\n  pw.expect(pw.response.body.orderNumber).toBe(pw.env.get(\"orderNumber\"));\n});\npw.test(\"Order is still CONFIRMED\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
@@ -568,9 +701,37 @@
     {
       "v": 12,
       "name": "Inventory Service",
-      "description": "InventoryController - /api/inventory (port 8083)",
+      "description": "InventoryController - /api/inventory (port 8083). Creating stock for a new SKU calls the product service, so it must be running.",
       "folders": [],
       "requests": [
+        {
+          "v": "17",
+          "name": "Setup - create product",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"inventorySkuCode\", \"LAPTOP-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"name\": \"Ultrabook 14\",\n  \"price\": 1299.99,\n  \"currency\": \"USD\",\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Inventory only creates stock for products that exist, so create one first. Generates a unique <<inventorySkuCode>>."
+        },
         {
           "v": "17",
           "name": "Save Inventory - new SKU (creates)",
@@ -585,7 +746,7 @@
               "description": ""
             }
           ],
-          "preRequestScript": "pw.env.set(\"inventorySkuCode\", \"LAPTOP-\" + Date.now());",
+          "preRequestScript": "",
           "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Stock is 25 and in stock\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n  pw.expect(pw.response.body.quantity).toBe(25);\n  pw.expect(pw.response.body.inStock).toBe(true);\n});",
           "auth": {
             "authType": "inherit",
@@ -597,7 +758,63 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "POST creates the record when the SKU has none: 201 with a Location header. Pre-request script generates a unique <<inventorySkuCode>> so the flow can be re-run."
+          "description": "Creates stock for the product made in the setup step: inventory checks the product service first, then returns 201 with a Location header."
+        },
+        {
+          "v": "17",
+          "name": "Save Inventory - unknown product",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Problem title is 'Unknown Product'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Unknown Product\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"NO-SUCH-PRODUCT\",\n  \"quantity\": 5\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A new SKU the product service doesn't know. Expects 422 'Unknown Product'; nothing is created."
+        },
+        {
+          "v": "17",
+          "name": "Deduct Stock",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"20 units left\", () => {\n  pw.expect(pw.response.body[0].quantity).toBe(20);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 5\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "All-or-nothing deduction (what the order service calls). 25 - 5 = 20."
         },
         {
           "v": "17",
@@ -626,6 +843,34 @@
           "requestVariables": [],
           "responses": {},
           "description": "Same SKU again: POST updates the quantity of the existing record and returns 200."
+        },
+        {
+          "v": "17",
+          "name": "Deduct Stock - insufficient",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Both SKUs are listed as short\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Insufficient Stock\");\n  pw.expect(pw.response.body.shortages.length).toBe(2);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 1\n    },\n    {\n      \"skuCode\": \"NO-SUCH-SKU\",\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Run after the quantity was set to 0, plus a SKU with no record. Expects 409 listing both shortages; nothing is deducted."
         },
         {
           "v": "17",

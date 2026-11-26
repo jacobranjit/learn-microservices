@@ -1,12 +1,18 @@
 package com.mc.oletrex.order.service;
 
 import com.mc.oletrex.order.dto.CursorPage;
+import com.mc.oletrex.order.dto.OrderPlacementResult;
 import com.mc.oletrex.order.dto.OrderRequest;
 import com.mc.oletrex.order.dto.OrderResponse;
 
 public interface OrderService {
 
-    OrderResponse createOrder(OrderRequest request);
+    /**
+     * Places an order: saves it as PLACED, looks up each product (must exist and be active; its
+     * price is copied), deducts stock in the inventory service, then marks it CONFIRMED.
+     * If any step fails the order is kept as CANCELLED with a reason.
+     */
+    OrderPlacementResult createOrder(OrderRequest request);
 
     /** @throws com.mc.oletrex.order.exception.OrderNotFoundException if no order has this number */
     OrderResponse getOrder(String orderNumber);

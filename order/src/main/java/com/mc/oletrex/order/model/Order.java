@@ -43,6 +43,10 @@ public class Order {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /** Why the order was cancelled (unknown product, insufficient stock, ...); null otherwise. */
+    @Column(length = 1000)
+    private String statusReason;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderLineItem> lineItems = new ArrayList<>();

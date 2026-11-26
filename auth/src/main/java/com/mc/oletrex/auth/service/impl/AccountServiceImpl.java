@@ -50,6 +50,10 @@ public class AccountServiceImpl implements AccountService {
     }
 
     /**
+     * The interim account is saved disabled and only enabled in the save that links the customer, so a
+     * failed compensation can never leave a half-linked account that is able to log in (it would hold the
+     * email). Cleanup SQL for such leftovers is in .env.example.
+     *
      * Known limitation (no idempotency): if the customer service commits but its response is lost
      * (e.g. a read timeout), the account is deleted while an orphan customer row remains. Retries then
      * get 409 from the customer service and the orphan needs manual cleanup.
@@ -61,7 +65,7 @@ public class AccountServiceImpl implements AccountService {
             throw new EmailAlreadyRegisteredException("Email already registered");
         }
         UserAccount account = repository.saveAndFlush(
-                new UserAccount(email, passwordEncoder.encode(request.password()), Role.USER, true, null));
+                new UserAccount(email, passwordEncoder.encode(request.password()), Role.USER, false, null));
 
         long customerId;
         try {
@@ -73,6 +77,7 @@ public class AccountServiceImpl implements AccountService {
 
         try {
             account.setCustomerId(customerId);
+            account.setEnabled(true);
             repository.saveAndFlush(account);
         } catch (RuntimeException e) {
             try {

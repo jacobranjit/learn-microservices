@@ -66,9 +66,12 @@ class AccountServiceImplTest {
     }
 
     /** saveAndFlush returns its argument, assigning id 5 like the database would. */
+    private final List<Boolean> enabledAtEachSave = new ArrayList<>();
+
     private void saveAssignsId() {
         when(repository.saveAndFlush(any(UserAccount.class))).thenAnswer(inv -> {
             UserAccount a = inv.getArgument(0);
+            enabledAtEachSave.add(a.isEnabled());
             ReflectionTestUtils.setField(a, "id", 5L);
             return a;
         });
@@ -90,11 +93,40 @@ class AccountServiceImplTest {
         assertThat(account.getEmail()).isEqualTo("alice@example.com");
         assertThat(account.getRole()).isEqualTo(Role.USER);
         assertThat(account.isEnabled()).isTrue();
+        assertThat(enabledAtEachSave).containsExactly(false, true);
         assertThat(encoder.matches("password1", account.getPasswordHash())).isTrue();
         assertThat(account.getCustomerId()).isEqualTo(7L);
         ArgumentCaptor<RegisterRequest> sent = ArgumentCaptor.forClass(RegisterRequest.class);
         verify(customerClient).createCustomer(eq(5L), sent.capture());
         assertThat(sent.getValue().email()).isEqualTo("alice@example.com");
+    }
+
+    @Test
+    void interimAccountIsDisabledSoALostCompensationCannotLeaveALoginableHalfAccount() {
+        saveAssignsId();
+        when(customerClient.createCustomer(eq(5L), any())).thenThrow(new CustomerServiceUnavailableException("down", null));
+        org.mockito.Mockito.doThrow(new RuntimeException("db down")).when(repository).delete(any(UserAccount.class));
+
+        assertThatThrownBy(() -> service.register(request("alice@example.com")))
+                .isInstanceOf(CustomerServiceUnavailableException.class);
+
+        assertThat(enabledAtEachSave).containsExactly(false);
+    }
+
+    @Test
+    void adminBootstrapResetRehashesExistingAdmin() {
+        UserAccount existing = new UserAccount("admin@oletrex.local", encoder.encode("old-password"), Role.USER, false, null);
+        when(repository.existsByEmail("admin@oletrex.local")).thenReturn(true);
+        when(repository.findByEmail("admin@oletrex.local")).thenReturn(java.util.Optional.of(existing));
+        AuthProperties props = new AuthProperties("iss", Duration.ofHours(1),
+                new AuthProperties.Admin("admin@oletrex.local", "NewPassw0rd!", true), Map.of());
+
+        new AdminBootstrap(repository, encoder, props).run(new DefaultApplicationArguments());
+
+        assertThat(encoder.matches("NewPassw0rd!", existing.getPasswordHash())).isTrue();
+        assertThat(existing.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(existing.isEnabled()).isTrue();
+        verify(repository).save(existing);
     }
 
     @Test
@@ -227,7 +259,7 @@ class AccountServiceImplTest {
             return inv.getArgument(0);
         });
         AuthProperties props = new AuthProperties("iss", Duration.ofHours(1),
-                new AuthProperties.Admin(" Admin@Oletrex.Local ", "Admin123!"), Map.of());
+                new AuthProperties.Admin(" Admin@Oletrex.Local ", "Admin123!", false), Map.of());
         AdminBootstrap bootstrap = new AdminBootstrap(repository, encoder, props);
 
         bootstrap.run(new DefaultApplicationArguments());

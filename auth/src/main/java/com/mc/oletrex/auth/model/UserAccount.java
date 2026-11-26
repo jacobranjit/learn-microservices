@@ -59,6 +59,7 @@ public class UserAccount {
     public Long getCustomerId() { return customerId; }
     public Instant getCreatedAt() { return createdAt; }
 
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public void setRole(Role role) { this.role = role; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public void setCustomerId(Long customerId) { this.customerId = customerId; }

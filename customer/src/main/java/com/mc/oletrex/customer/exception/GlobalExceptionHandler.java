@@ -50,7 +50,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    // Raised when a DB constraint fails, e.g. duplicate skuCode (unique = true)
+    // Raised when a DB constraint fails, e.g. a duplicate email or auth_user_id (unique = true)
     // or a missing required column (nullable = false).
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {

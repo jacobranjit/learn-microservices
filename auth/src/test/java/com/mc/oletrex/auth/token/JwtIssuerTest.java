@@ -38,7 +38,7 @@ class JwtIssuerTest {
         when(repository.save(any(SigningKey.class))).thenAnswer(i -> i.getArgument(0));
         signingKeys = new SigningKeys(repository);
         AuthProperties properties = new AuthProperties(ISSUER, Duration.ofHours(1),
-                new AuthProperties.Admin("admin@oletrex.local", "x"), Map.of());
+                new AuthProperties.Admin("admin@oletrex.local", "x", false), Map.of());
         issuer = new JwtIssuer(signingKeys, properties);
         decoder = NimbusJwtDecoder.withPublicKey(signingKeys.current().toRSAPublicKey()).build();
         decoder.setJwtValidator(SecurityConfigAccess.validator(ISSUER));
@@ -80,7 +80,7 @@ class JwtIssuerTest {
     @Test
     void tokenFromAnotherIssuerIsRejected() {
         JwtIssuer other = new JwtIssuer(signingKeys, new AuthProperties("someone-else", Duration.ofHours(1),
-                new AuthProperties.Admin("a", "b"), Map.of()));
+                new AuthProperties.Admin("a", "b", false), Map.of()));
         String token = other.issueServiceToken("order-service").accessToken();
 
         assertThatThrownBy(() -> decoder.decode(token)).isInstanceOf(JwtValidationException.class);

@@ -19,8 +19,9 @@ public class InventoryClient {
 
     public InventoryClient(@Value("${services.inventory.base-url}") String baseUrl,
                            @Value("${services.http.connect-timeout}") Duration connectTimeout,
-                           @Value("${services.http.read-timeout}") Duration readTimeout) {
-        this.restClient = RestClients.create(baseUrl, connectTimeout, readTimeout);
+                           @Value("${services.http.read-timeout}") Duration readTimeout,
+                         ServiceTokenInterceptor serviceTokenInterceptor) {
+        this.restClient = RestClients.create(baseUrl, connectTimeout, readTimeout, serviceTokenInterceptor);
     }
 
     /**

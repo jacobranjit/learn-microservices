@@ -1,7 +1,10 @@
 package com.mc.oletrex.order.model;
 
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -35,6 +38,32 @@ public class Order {
 
     @Column(nullable = false, unique = true)
     private String orderNumber;
+
+    /** The customer who placed the order (customerId claim of the caller's token). */
+    @Column(nullable = false)
+    private Long customerId;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "shipping_line1", nullable = false)),
+            @AttributeOverride(name = "line2", column = @Column(name = "shipping_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "shipping_city", nullable = false)),
+            @AttributeOverride(name = "state", column = @Column(name = "shipping_state")),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "shipping_postal_code", nullable = false)),
+            @AttributeOverride(name = "country", column = @Column(name = "shipping_country", nullable = false))
+    })
+    private OrderAddress shippingAddress;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "line1", column = @Column(name = "billing_line1", nullable = false)),
+            @AttributeOverride(name = "line2", column = @Column(name = "billing_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "billing_city", nullable = false)),
+            @AttributeOverride(name = "state", column = @Column(name = "billing_state")),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "billing_postal_code", nullable = false)),
+            @AttributeOverride(name = "country", column = @Column(name = "billing_country", nullable = false))
+    })
+    private OrderAddress billingAddress;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

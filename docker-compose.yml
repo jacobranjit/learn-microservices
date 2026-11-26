@@ -121,6 +121,9 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/order_db
       PRODUCT_SERVICE_URL: http://product:8082
       INVENTORY_SERVICE_URL: http://inventory:8083
+      AUTH_JWKS_URL: http://auth:8086/.well-known/jwks.json
+      AUTH_SERVICE_URL: http://auth:8086
+      ORDER_SERVICE_SECRET: "${ORDER_SERVICE_SECRET:-order-dev-secret}"
     ports:
       - "${ORDER_PORT:-8081}:8081"
     depends_on:
@@ -129,6 +132,8 @@ services:
       product:
         condition: service_started
       inventory:
+        condition: service_started
+      auth:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]

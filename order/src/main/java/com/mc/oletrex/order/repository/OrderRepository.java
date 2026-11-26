@@ -17,6 +17,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(attributePaths = "lineItems")
     Optional<Order> findByOrderNumber(String orderNumber);
 
+    @EntityGraph(attributePaths = "lineItems")
+    Optional<Order> findByOrderNumberAndCustomerId(String orderNumber, Long customerId);
+
+    /** Keyset page: one customer's orders after the given id, in id order. */
+    List<Order> findByCustomerIdAndIdGreaterThanOrderByIdAsc(Long customerId, Long afterId, Limit limit);
+
     /** Keyset page: orders after the given id, in id order. Uses the primary-key index. */
     List<Order> findByIdGreaterThanOrderByIdAsc(Long afterId, Limit limit);
 

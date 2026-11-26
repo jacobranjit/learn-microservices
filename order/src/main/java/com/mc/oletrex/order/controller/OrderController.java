@@ -4,6 +4,8 @@ import com.mc.oletrex.order.dto.CursorPage;
 import com.mc.oletrex.order.dto.OrderPlacementResult;
 import com.mc.oletrex.order.dto.OrderRequest;
 import com.mc.oletrex.order.dto.OrderResponse;
+import com.mc.oletrex.order.security.CurrentUser;
+import com.mc.oletrex.order.service.Caller;
 import com.mc.oletrex.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,6 +20,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,13 +51,17 @@ public class OrderController {
                     + "with statusReason. The order is saved in every case, so Location is always set.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Order CONFIRMED"),
+                    @ApiResponse(responseCode = "403", description = "Not a USER token with a customerId", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
                     @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
                     @ApiResponse(responseCode = "422", description = "Order CANCELLED: unknown or inactive product, mixed currencies, or insufficient stock (see statusReason)"),
                     @ApiResponse(responseCode = "503", description = "Order CANCELLED: product or inventory service unavailable (see statusReason)")
             })
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {
-        OrderPlacementResult result = orderService.createOrder(request);
+    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request,
+                                                     @AuthenticationPrincipal Jwt jwt) {
+        long customerId = CurrentUser.customerId(jwt)
+                .orElseThrow(() -> new AccessDeniedException("Token has no customerId"));
+        OrderPlacementResult result = orderService.createOrder(request, customerId);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{orderNumber}")
                 .buildAndExpand(result.order().orderNumber())
@@ -70,8 +80,8 @@ public class OrderController {
                     @ApiResponse(responseCode = "404", description = "Order not found", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
             })
     @GetMapping("/{orderNumber}")
-    public OrderResponse getOrder(@PathVariable String orderNumber) {
-        return orderService.getOrder(orderNumber);
+    public OrderResponse getOrder(@PathVariable String orderNumber, Authentication authentication) {
+        return orderService.getOrder(orderNumber, caller(authentication));
     }
 
     @Operation(summary = "List orders with line items, one page at a time (cursor pagination)",
@@ -86,8 +96,18 @@ public class OrderController {
             @Parameter(description = "nextCursor from the previous page; omit for the first page")
             @RequestParam(required = false) String cursor,
             @Parameter(description = "Page size, 1-100")
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
-        return orderService.getOrders(cursor, limit);
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
+            Authentication authentication) {
+        return orderService.getOrders(cursor, limit, caller(authentication));
+    }
+
+    /** Admins are unfiltered; a non-admin token must carry a customerId (else 403). */
+    private static Caller caller(Authentication authentication) {
+        Caller caller = Caller.from(authentication);
+        if (!caller.admin() && caller.customerId() == null) {
+            throw new AccessDeniedException("Token has no customerId");
+        }
+        return caller;
     }
 
     @Operation(summary = "Delete an order and its line items",

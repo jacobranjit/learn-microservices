@@ -13,6 +13,9 @@ public record OrderResponse(
         /* Why the order was cancelled; null unless status is CANCELLED. */
         String statusReason,
         Instant createdAt,
+        Long customerId,
+        AddressDto shippingAddress,
+        AddressDto billingAddress,
         List<OrderLineItemResponse> lineItems
 ) {
 }

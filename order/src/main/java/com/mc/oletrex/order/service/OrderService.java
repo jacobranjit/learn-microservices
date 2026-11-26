@@ -12,10 +12,14 @@ public interface OrderService {
      * price is copied), deducts stock in the inventory service, then marks it CONFIRMED.
      * If any step fails the order is kept as CANCELLED with a reason.
      */
-    OrderPlacementResult createOrder(OrderRequest request);
+    OrderPlacementResult createOrder(OrderRequest request, long customerId);
 
-    /** @throws com.mc.oletrex.order.exception.OrderNotFoundException if no order has this number */
-    OrderResponse getOrder(String orderNumber);
+    /**
+     * Admins can read any order; other callers only their own.
+     *
+     * @throws com.mc.oletrex.order.exception.OrderNotFoundException if no such order exists for the caller
+     */
+    OrderResponse getOrder(String orderNumber, Caller caller);
 
     /**
      * One page of orders with their line items, ordered by creation (id).
@@ -24,7 +28,7 @@ public interface OrderService {
      * @param limit  page size
      * @throws com.mc.oletrex.order.exception.InvalidCursorException if the cursor cannot be decoded
      */
-    CursorPage<OrderResponse> getOrders(String cursor, int limit);
+    CursorPage<OrderResponse> getOrders(String cursor, int limit, Caller caller);
 
     /** @throws com.mc.oletrex.order.exception.OrderNotFoundException if no order has this number */
     void deleteOrder(String orderNumber);

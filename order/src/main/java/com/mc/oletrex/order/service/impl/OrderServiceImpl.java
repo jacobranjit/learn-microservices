@@ -6,6 +6,7 @@ import com.mc.oletrex.order.client.InventoryClient;
 import com.mc.oletrex.order.client.ProductClient;
 import com.mc.oletrex.order.client.ProductInfo;
 import com.mc.oletrex.order.client.StockItem;
+import com.mc.oletrex.order.dto.AddressDto;
 import com.mc.oletrex.order.dto.CursorPage;
 import com.mc.oletrex.order.dto.OrderLineItemRequest;
 import com.mc.oletrex.order.dto.OrderLineItemResponse;
@@ -15,12 +16,15 @@ import com.mc.oletrex.order.dto.OrderRequest;
 import com.mc.oletrex.order.dto.OrderResponse;
 import com.mc.oletrex.order.exception.OrderNotFoundException;
 import com.mc.oletrex.order.model.Order;
+import com.mc.oletrex.order.model.OrderAddress;
 import com.mc.oletrex.order.model.OrderLineItem;
 import com.mc.oletrex.order.model.OrderStatus;
 import com.mc.oletrex.order.repository.OrderRepository;
+import com.mc.oletrex.order.service.Caller;
 import com.mc.oletrex.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,11 +49,14 @@ public class OrderServiceImpl implements OrderService {
     // No surrounding transaction: remote calls must not hold a DB connection open, and the
     // PLACED order must be saved even if a later step fails. Each save is its own transaction.
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public OrderPlacementResult createOrder(OrderRequest request) {
+    public OrderPlacementResult createOrder(OrderRequest request, long customerId) {
         Order order = Order.builder()
                 .orderNumber(UUID.randomUUID().toString())
                 .status(OrderStatus.PLACED)
                 .createdAt(Instant.now())
+                .customerId(customerId)
+                .shippingAddress(toEntity(request.shippingAddress()))
+                .billingAddress(toEntity(request.billingAddress()))
                 .build();
         request.lineItems().forEach(item -> order.addLineItem(toEntity(item)));
         Order placed = orderRepository.save(order);
@@ -114,17 +121,23 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public OrderResponse getOrder(String orderNumber) {
-        return toResponse(findOrder(orderNumber));
+    public OrderResponse getOrder(String orderNumber, Caller caller) {
+        Order order = caller.admin()
+                ? findOrder(orderNumber)
+                : findOwnedOrder(orderNumber, caller);
+        return toResponse(order);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CursorPage<OrderResponse> getOrders(String cursor, int limit) {
+    public CursorPage<OrderResponse> getOrders(String cursor, int limit, Caller caller) {
         long afterId = IdCursor.decode(cursor);
 
         // Ask for one extra row: if it comes back, there is a next page.
-        List<Order> rows = orderRepository.findByIdGreaterThanOrderByIdAsc(afterId, Limit.of(limit + 1));
+        List<Order> rows = caller.admin()
+                ? orderRepository.findByIdGreaterThanOrderByIdAsc(afterId, Limit.of(limit + 1))
+                : orderRepository.findByCustomerIdAndIdGreaterThanOrderByIdAsc(
+                        requireCustomerId(caller), afterId, Limit.of(limit + 1));
         boolean hasMore = rows.size() > limit;
         List<Order> page = hasMore ? rows.subList(0, limit) : rows;
         if (page.isEmpty()) {
@@ -151,6 +164,28 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(orderNumber));
     }
 
+    /** Another customer's order is reported as not found, so its existence is not revealed. */
+    private Order findOwnedOrder(String orderNumber, Caller caller) {
+        return orderRepository.findByOrderNumberAndCustomerId(orderNumber, requireCustomerId(caller))
+                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+    }
+
+    private static Long requireCustomerId(Caller caller) {
+        if (caller.customerId() == null) {
+            throw new AccessDeniedException("Token has no customerId");
+        }
+        return caller.customerId();
+    }
+
+    private OrderAddress toEntity(AddressDto a) {
+        return new OrderAddress(a.line1(), a.line2(), a.city(), a.state(), a.postalCode(), a.country());
+    }
+
+    private AddressDto toDto(OrderAddress a) {
+        return a == null ? null
+                : new AddressDto(a.getLine1(), a.getLine2(), a.getCity(), a.getState(), a.getPostalCode(), a.getCountry());
+    }
+
     private OrderLineItem toEntity(OrderLineItemRequest item) {
         return OrderLineItem.builder()
                 .skuCode(item.skuCode())
@@ -164,6 +199,7 @@ public class OrderServiceImpl implements OrderService {
                 .toList();
         return new OrderResponse(order.getOrderNumber(), order.getStatus(), order.getFulfilmentLocationCode(),
                 order.getStatusReason(),
-                order.getCreatedAt(), items);
+                order.getCreatedAt(), order.getCustomerId(),
+                toDto(order.getShippingAddress()), toDto(order.getBillingAddress()), items);
     }
 }

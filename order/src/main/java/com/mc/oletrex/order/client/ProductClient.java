@@ -17,8 +17,9 @@ public class ProductClient {
 
     public ProductClient(@Value("${services.product.base-url}") String baseUrl,
                          @Value("${services.http.connect-timeout}") Duration connectTimeout,
-                         @Value("${services.http.read-timeout}") Duration readTimeout) {
-        this.restClient = RestClients.create(baseUrl, connectTimeout, readTimeout);
+                         @Value("${services.http.read-timeout}") Duration readTimeout,
+                         ServiceTokenInterceptor serviceTokenInterceptor) {
+        this.restClient = RestClients.create(baseUrl, connectTimeout, readTimeout, serviceTokenInterceptor);
     }
 
     /**

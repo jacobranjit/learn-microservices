@@ -35,6 +35,27 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(UserNotFoundException.class)
+    public ProblemDetail handleUserNotFound(UserNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("User Not Found");
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidCursorException.class)
+    public ProblemDetail handleInvalidCursor(InvalidCursorException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Invalid Cursor");
+        return problem;
+    }
+
+    @ExceptionHandler(SelfModificationException.class)
+    public ProblemDetail handleSelfModification(SelfModificationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Self Modification Not Allowed");
+        return problem;
+    }
+
     @ExceptionHandler(CustomerServiceUnavailableException.class)
     public ProblemDetail handleCustomerDown(CustomerServiceUnavailableException ex) {
         log.warn("Customer service unavailable: {}", ex.getMessage());

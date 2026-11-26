@@ -1988,6 +1988,115 @@
           "requestVariables": [],
           "responses": {},
           "description": "Password must be 8-100 characters."
+        },
+        {
+          "v": "17",
+          "name": "List users (admin)",
+          "method": "GET",
+          "endpoint": "<<authBaseUrl>>/api/auth/users?limit=20",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\nconst target = pw.response.body.items.find((u) => u.role === \"USER\");\nif (target) {\n  pw.env.set(\"userId\", String(target.id));\n}",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Cursor pagination: pass nextCursor as ?cursor= for the next page. Stores the first USER account's id as <<userId>> for the requests below. Run Admin login first."
+        },
+        {
+          "v": "17",
+          "name": "Promote user to admin",
+          "method": "PUT",
+          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/role",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Role is ADMIN\", () => {\n  pw.expect(pw.response.body.role).toBe(\"ADMIN\");\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"role\": \"ADMIN\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Changes the role of <<userId>> (set by List users). You cannot demote yourself (409). Takes effect when the user next logs in."
+        },
+        {
+          "v": "17",
+          "name": "Disable user",
+          "method": "PUT",
+          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/enabled",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"User is disabled\", () => {\n  pw.expect(pw.response.body.enabled).toBe(false);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"enabled\": false\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. A disabled user cannot log in. You cannot disable yourself (409)."
+        },
+        {
+          "v": "17",
+          "name": "Enable user",
+          "method": "PUT",
+          "endpoint": "<<authBaseUrl>>/api/auth/users/<<userId>>/enabled",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"User is enabled\", () => {\n  pw.expect(pw.response.body.enabled).toBe(true);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"enabled\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "ADMIN only. Re-enables an account disabled with Disable user."
         }
       ],
       "auth": {

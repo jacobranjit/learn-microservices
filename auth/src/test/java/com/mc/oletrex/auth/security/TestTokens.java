@@ -26,6 +26,11 @@ public final class TestTokens {
         return token(j -> j.claim("roles", List.of("ADMIN")).subject("admin"));
     }
 
+    /** An ADMIN whose JWT subject is the given account id, as real admin tokens have. */
+    public static RequestPostProcessor admin(long accountId) {
+        return token(j -> j.claim("roles", List.of("ADMIN")).subject(String.valueOf(accountId)));
+    }
+
     public static RequestPostProcessor service() {
         return token(j -> j.claim("roles", List.of("SERVICE")).subject("order-service"));
     }

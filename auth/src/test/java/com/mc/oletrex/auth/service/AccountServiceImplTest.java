@@ -3,9 +3,13 @@ package com.mc.oletrex.auth.service;
 import com.mc.oletrex.auth.client.CustomerClient;
 import com.mc.oletrex.auth.client.CustomerServiceUnavailableException;
 import com.mc.oletrex.auth.dto.AddressDto;
+import com.mc.oletrex.auth.dto.CursorPage;
 import com.mc.oletrex.auth.dto.LoginRequest;
 import com.mc.oletrex.auth.dto.RegisterRequest;
 import com.mc.oletrex.auth.dto.TokenResponse;
+import com.mc.oletrex.auth.dto.UserResponse;
+import com.mc.oletrex.auth.exception.InvalidCursorException;
+import com.mc.oletrex.auth.exception.UserNotFoundException;
 import com.mc.oletrex.auth.exception.EmailAlreadyRegisteredException;
 import com.mc.oletrex.auth.exception.InvalidCredentialsException;
 import com.mc.oletrex.auth.model.Role;
@@ -17,6 +21,7 @@ import com.mc.oletrex.auth.token.JwtIssuer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Limit;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -236,5 +241,61 @@ class AccountServiceImplTest {
         assertThat(db.get(0).getCustomerId()).isNull();
         assertThat(encoder.matches("Admin123!", firstHash)).isTrue();
         assertThat(db.get(0).getPasswordHash()).isEqualTo(firstHash);
+    }
+
+    private static UserAccount account(long id, Role role, boolean enabled) {
+        UserAccount a = new UserAccount("u" + id + "@example.com", "HASH", role, enabled, null);
+        ReflectionTestUtils.setField(a, "id", id);
+        return a;
+    }
+
+    @Test
+    void listUsersOverFetchesOneRowAndReturnsCursorWhenMore() {
+        when(repository.findByIdGreaterThanOrderByIdAsc(0L, Limit.of(3)))
+                .thenReturn(List.of(account(1, Role.ADMIN, true), account(2, Role.USER, true), account(3, Role.USER, true)));
+
+        CursorPage<UserResponse> page = service.listUsers(null, 2);
+
+        assertThat(page.items()).extracting(UserResponse::id).containsExactly(1L, 2L);
+        assertThat(page.hasMore()).isTrue();
+        assertThat(page.nextCursor()).isEqualTo(
+                java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("id:2".getBytes()));
+    }
+
+    @Test
+    void listUsersLastPageHasNoCursorAndContinuesAfterDecodedId() {
+        when(repository.findByIdGreaterThanOrderByIdAsc(2L, Limit.of(3))).thenReturn(List.of(account(3, Role.USER, true)));
+        String cursor = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("id:2".getBytes());
+
+        CursorPage<UserResponse> page = service.listUsers(cursor, 2);
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.hasMore()).isFalse();
+        assertThat(page.nextCursor()).isNull();
+    }
+
+    @Test
+    void listUsersRejectsBadCursor() {
+        assertThatThrownBy(() -> service.listUsers("!!!", 20)).isInstanceOf(InvalidCursorException.class);
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void updateRoleAndEnabledPersistAndNeverExposeHash() {
+        UserAccount a = account(2, Role.USER, true);
+        when(repository.findById(2L)).thenReturn(Optional.of(a));
+        when(repository.saveAndFlush(a)).thenReturn(a);
+
+        assertThat(service.updateRole(2L, Role.ADMIN).role()).isEqualTo(Role.ADMIN);
+        assertThat(service.updateEnabled(2L, false).enabled()).isFalse();
+        assertThat(a.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(a.isEnabled()).isFalse();
+    }
+
+    @Test
+    void updateUnknownUserThrowsNotFound() {
+        when(repository.findById(9L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.updateRole(9L, Role.ADMIN)).isInstanceOf(UserNotFoundException.class);
+        assertThatThrownBy(() -> service.updateEnabled(9L, true)).isInstanceOf(UserNotFoundException.class);
     }
 }

@@ -1,11 +1,14 @@
 package com.mc.oletrex.auth.service.impl;
 
 import com.mc.oletrex.auth.client.CustomerClient;
+import com.mc.oletrex.auth.dto.CursorPage;
 import com.mc.oletrex.auth.dto.LoginRequest;
 import com.mc.oletrex.auth.dto.RegisterRequest;
 import com.mc.oletrex.auth.dto.TokenResponse;
+import com.mc.oletrex.auth.dto.UserResponse;
 import com.mc.oletrex.auth.exception.EmailAlreadyRegisteredException;
 import com.mc.oletrex.auth.exception.InvalidCredentialsException;
+import com.mc.oletrex.auth.exception.UserNotFoundException;
 import com.mc.oletrex.auth.model.Role;
 import com.mc.oletrex.auth.model.UserAccount;
 import com.mc.oletrex.auth.repository.UserAccountRepository;
@@ -13,9 +16,11 @@ import com.mc.oletrex.auth.service.AccountService;
 import com.mc.oletrex.auth.token.JwtIssuer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Limit;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -91,6 +96,42 @@ public class AccountServiceImpl implements AccountService {
             throw new InvalidCredentialsException(INVALID);
         }
         return jwtIssuer.issueUserToken(account.getId(), account.getEmail(), account.getRole(), account.getCustomerId());
+    }
+
+    @Override
+    public CursorPage<UserResponse> listUsers(String cursor, int limit) {
+        long afterId = IdCursor.decode(cursor);
+        // Ask for one extra row: if it comes back, there is a next page.
+        List<UserAccount> rows = repository.findByIdGreaterThanOrderByIdAsc(afterId, Limit.of(limit + 1));
+        boolean hasMore = rows.size() > limit;
+        List<UserAccount> page = hasMore ? rows.subList(0, limit) : rows;
+        if (page.isEmpty()) {
+            return new CursorPage<>(List.of(), null, false);
+        }
+        String nextCursor = hasMore ? IdCursor.encode(page.getLast().getId()) : null;
+        return new CursorPage<>(page.stream().map(AccountServiceImpl::toResponse).toList(), nextCursor, hasMore);
+    }
+
+    @Override
+    public UserResponse updateRole(long id, Role role) {
+        UserAccount account = find(id);
+        account.setRole(role);
+        return toResponse(repository.saveAndFlush(account));
+    }
+
+    @Override
+    public UserResponse updateEnabled(long id, boolean enabled) {
+        UserAccount account = find(id);
+        account.setEnabled(enabled);
+        return toResponse(repository.saveAndFlush(account));
+    }
+
+    private UserAccount find(long id) {
+        return repository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+    }
+
+    private static UserResponse toResponse(UserAccount a) {
+        return new UserResponse(a.getId(), a.getEmail(), a.getRole(), a.isEnabled(), a.getCustomerId(), a.getCreatedAt());
     }
 
     /** Always attempts the delete; a failure is logged and attached to the original exception. */

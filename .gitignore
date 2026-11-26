@@ -26,3 +26,6 @@ replay_pid*
 ### IDE / tool files ###
 .idea/
 .serena/
+
+### Local environment overrides ###
+.env

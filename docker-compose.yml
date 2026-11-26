@@ -1,15 +1,35 @@
-# Local development infrastructure.
-#   Start:  docker compose up -d
-#   Stop:   docker compose down        (add -v to also wipe the data)
+# Oletrex microservices: PostgreSQL + product, inventory and order services
+# (+ generate-master-data on demand), each in its own container with CPU and RAM limits.
+#
+#   Everything:          docker compose up -d --build
+#   Only the database:   docker compose up -d postgres        (when running the services from the IDE)
+#   Seed test data:      docker compose --profile seed up -d --build generate-master-data
+#   Status / usage:      docker compose ps    |    docker stats
+#   Stop:                docker compose down                   (add -v to also wipe the data)
+#
+# Limits default to the values below; override any of them with environment variables
+# or an .env file next to this file (see .env.example).
+# Sized for a 4-core / 8 GB machine: worst case (every container at its limit) is 4.5 GB RAM.
+# Limits are caps, not reservations: at rest the whole stack uses about 1.3 GB.
+
+x-java-service: &java-service
+  restart: unless-stopped
+  environment: &java-env
+    # Heap = 75% of the container's memory limit; restart instead of limping on after OutOfMemoryError.
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+    DB_USERNAME: oletrex
+    DB_PASSWORD: oletrex   # local dev only
+
 services:
   postgres:
     image: postgres:18-alpine
     container_name: oletrex-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: oletrex
       POSTGRES_PASSWORD: oletrex   # local dev only
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
       # Runs once, on first start with an empty volume: creates one database per service.
@@ -19,6 +39,122 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "${POSTGRES_CPUS:-1.0}"
+          memory: "${POSTGRES_MEMORY:-512M}"
+
+  product:
+    <<: *java-service
+    build: ./product
+    image: oletrex/product:latest
+    container_name: oletrex-product
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/product_db
+    ports:
+      - "${PRODUCT_PORT:-8082}:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "${PRODUCT_CPUS:-1.0}"
+          memory: "${PRODUCT_MEMORY:-1G}"
+
+  inventory:
+    <<: *java-service
+    build: ./inventory
+    image: oletrex/inventory:latest
+    container_name: oletrex-inventory
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/inventory_db
+      PRODUCT_SERVICE_URL: http://product:8082
+    ports:
+      - "${INVENTORY_PORT:-8083}:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "${INVENTORY_CPUS:-1.0}"
+          memory: "${INVENTORY_MEMORY:-1G}"
+
+  order:
+    <<: *java-service
+    build: ./order
+    image: oletrex/order:latest
+    container_name: oletrex-order
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/order_db
+      PRODUCT_SERVICE_URL: http://product:8082
+      INVENTORY_SERVICE_URL: http://inventory:8083
+    ports:
+      - "${ORDER_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product:
+        condition: service_started
+      inventory:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "${ORDER_CPUS:-1.0}"
+          memory: "${ORDER_MEMORY:-1G}"
+
+  # Only started with --profile seed. Populates the CSV master data once product and
+  # inventory are healthy, then stays up so populate can be re-run on port 8084.
+  generate-master-data:
+    <<: *java-service
+    build: ./generate-master-data
+    image: oletrex/generate-master-data:latest
+    container_name: oletrex-generate-master-data
+    profiles: ["seed"]
+    restart: "no"
+    environment:
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+      PRODUCT_SERVICE_URL: http://product:8082
+      INVENTORY_SERVICE_URL: http://inventory:8083
+      MASTERDATA_POPULATE_ON_STARTUP: "true"
+    ports:
+      - "${MASTERDATA_PORT:-8084}:8084"
+    depends_on:
+      product:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "${MASTERDATA_CPUS:-0.5}"
+          memory: "${MASTERDATA_MEMORY:-1G}"
 
 volumes:
   postgres-data:

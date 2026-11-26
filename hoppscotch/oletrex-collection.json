@@ -498,8 +498,9 @@
           "preRequestScript": "pw.env.set(\"skuCode\", \"LAPTOP-\" + Date.now());",
           "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Product has details with 2 attributes and 2 images\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"skuCode\"));\n  pw.expect(pw.response.body.details.attributes.length).toBe(2);\n  pw.expect(pw.response.body.details.images.length).toBe(2);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -526,8 +527,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Product Already Exists'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Product Already Exists\");\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -554,8 +556,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -582,8 +585,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"productNextCursor\", pw.response.body.nextCursor || \"\");",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -616,8 +620,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"productNextCursor\", pw.response.body.nextCursor || \"\");",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -644,8 +649,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -672,8 +678,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -693,8 +700,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested product\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"skuCode\"));\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -721,8 +729,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Changes are applied\", () => {\n  pw.expect(pw.response.body.name).toBe(\"Ultrabook 14 (2026)\");\n  pw.expect(pw.response.body.details.attributes.length).toBe(1);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -742,8 +751,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": null,
@@ -763,8 +773,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Product Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Product Not Found\");\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
           },
           "body": {
             "contentType": null,
@@ -773,6 +784,56 @@
           "requestVariables": [],
           "responses": {},
           "description": "Run after 'Delete Product': expects 404 'Product Not Found'."
+        },
+        {
+          "v": "17",
+          "name": "Create product as user - 403",
+          "method": "POST",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 403 Forbidden\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
+          "auth": {
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<accessToken>>"
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"FORBIDDEN-1\",\n  \"name\": \"Not allowed\",\n  \"price\": 1.00,\n  \"currency\": \"USD\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A USER token may read products but not write: expects 403 ProblemDetail. Run Auth Service > Login first so <<accessToken>> is set."
+        },
+        {
+          "v": "17",
+          "name": "List without token - 401",
+          "method": "GET",
+          "endpoint": "<<productBaseUrl>>/api/products",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 401 Unauthorized\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "No Authorization header: expects 401 ProblemDetail with WWW-Authenticate: Bearer."
         }
       ],
       "auth": {

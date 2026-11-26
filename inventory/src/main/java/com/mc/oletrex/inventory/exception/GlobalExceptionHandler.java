@@ -26,13 +26,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(InventoryAlreadyExistsException.class)
-    public ProblemDetail handleInventoryAlreadyExists(InventoryAlreadyExistsException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
-        problem.setTitle("Inventory Already Exists");
-        return problem;
-    }
-
     @ExceptionHandler(InvalidCursorException.class)
     public ProblemDetail handleInvalidCursor(InvalidCursorException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

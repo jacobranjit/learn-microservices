@@ -3,8 +3,7 @@ package com.mc.oletrex.inventory.service.impl;
 import com.mc.oletrex.inventory.dto.CursorPage;
 import com.mc.oletrex.inventory.dto.InventoryRequest;
 import com.mc.oletrex.inventory.dto.InventoryResponse;
-import com.mc.oletrex.inventory.dto.InventoryUpdateRequest;
-import com.mc.oletrex.inventory.exception.InventoryAlreadyExistsException;
+import com.mc.oletrex.inventory.dto.InventoryUpsertResult;
 import com.mc.oletrex.inventory.exception.InventoryNotFoundException;
 import com.mc.oletrex.inventory.model.Inventory;
 import com.mc.oletrex.inventory.repository.InventoryRepository;
@@ -24,15 +23,19 @@ public class InventoryServiceImpl implements InventoryService {
     private final InventoryRepository inventoryRepository;
 
     @Override
-    public InventoryResponse createInventory(InventoryRequest request) {
-        if (inventoryRepository.existsBySkuCode(request.skuCode())) {
-            throw new InventoryAlreadyExistsException(request.skuCode());
-        }
-        Inventory inventory = Inventory.builder()
-                .skuCode(request.skuCode())
-                .quantity(request.quantity())
-                .build();
-        return toResponse(inventoryRepository.save(inventory));
+    public InventoryUpsertResult saveInventory(InventoryRequest request) {
+        return inventoryRepository.findBySkuCode(request.skuCode())
+                .map(existing -> {
+                    existing.setQuantity(request.quantity());
+                    return new InventoryUpsertResult(toResponse(existing), false);
+                })
+                .orElseGet(() -> {
+                    Inventory created = inventoryRepository.save(Inventory.builder()
+                            .skuCode(request.skuCode())
+                            .quantity(request.quantity())
+                            .build());
+                    return new InventoryUpsertResult(toResponse(created), true);
+                });
     }
 
     @Override
@@ -54,18 +57,6 @@ public class InventoryServiceImpl implements InventoryService {
         List<InventoryResponse> items = page.stream().map(this::toResponse).toList();
         String nextCursor = hasMore ? IdCursor.encode(page.getLast().getId()) : null;
         return new CursorPage<>(items, nextCursor, hasMore);
-    }
-
-    @Override
-    public InventoryResponse updateInventory(String skuCode, InventoryUpdateRequest request) {
-        Inventory inventory = findInventory(skuCode);
-        inventory.setQuantity(request.quantity());
-        return toResponse(inventory);
-    }
-
-    @Override
-    public void deleteInventory(String skuCode) {
-        inventoryRepository.delete(findInventory(skuCode));
     }
 
     private Inventory findInventory(String skuCode) {

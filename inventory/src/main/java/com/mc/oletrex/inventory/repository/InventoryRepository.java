@@ -11,8 +11,6 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findBySkuCode(String skuCode);
 
-    boolean existsBySkuCode(String skuCode);
-
     /** Keyset page: records after the given id, in id order. Uses the primary-key index. */
     List<Inventory> findByIdGreaterThanOrderByIdAsc(Long afterId, Limit limit);
 }

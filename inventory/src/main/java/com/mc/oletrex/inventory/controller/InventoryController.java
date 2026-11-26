@@ -3,7 +3,7 @@ package com.mc.oletrex.inventory.controller;
 import com.mc.oletrex.inventory.dto.CursorPage;
 import com.mc.oletrex.inventory.dto.InventoryRequest;
 import com.mc.oletrex.inventory.dto.InventoryResponse;
-import com.mc.oletrex.inventory.dto.InventoryUpdateRequest;
+import com.mc.oletrex.inventory.dto.InventoryUpsertResult;
 import com.mc.oletrex.inventory.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,11 +17,9 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,20 +36,25 @@ public class InventoryController {
 
     private final InventoryService inventoryService;
 
-    @Operation(summary = "Create an inventory record for a SKU",
+    @Operation(summary = "Create or update the stock level of a SKU",
+            description = "Creates the inventory record if the SKU has none (201), "
+                    + "otherwise sets its quantity (200).",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "Inventory created; Location header points to it"),
-                    @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
-                    @ApiResponse(responseCode = "409", description = "This SKU already has an inventory record", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+                    @ApiResponse(responseCode = "201", description = "New record created; Location header points to it"),
+                    @ApiResponse(responseCode = "200", description = "Existing record updated"),
+                    @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
             })
     @PostMapping
-    public ResponseEntity<InventoryResponse> createInventory(@Valid @RequestBody InventoryRequest request) {
-        InventoryResponse created = inventoryService.createInventory(request);
+    public ResponseEntity<InventoryResponse> saveInventory(@Valid @RequestBody InventoryRequest request) {
+        InventoryUpsertResult result = inventoryService.saveInventory(request);
+        if (!result.created()) {
+            return ResponseEntity.ok(result.inventory());
+        }
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{skuCode}")
-                .buildAndExpand(created.skuCode())
+                .buildAndExpand(result.inventory().skuCode())
                 .toUri();
-        return ResponseEntity.created(location).body(created);
+        return ResponseEntity.created(location).body(result.inventory());
     }
 
     @Operation(summary = "Get the stock level for a SKU",
@@ -78,28 +81,5 @@ public class InventoryController {
             @Parameter(description = "Page size, 1-100")
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
         return inventoryService.getInventoryPage(cursor, limit);
-    }
-
-    @Operation(summary = "Set the stock level for a SKU",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Inventory updated"),
-                    @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
-                    @ApiResponse(responseCode = "404", description = "No inventory record for this SKU", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
-            })
-    @PutMapping("/{skuCode}")
-    public InventoryResponse updateInventory(@PathVariable String skuCode,
-                                             @Valid @RequestBody InventoryUpdateRequest request) {
-        return inventoryService.updateInventory(skuCode, request);
-    }
-
-    @Operation(summary = "Delete the inventory record for a SKU",
-            responses = {
-                    @ApiResponse(responseCode = "204", description = "Inventory deleted"),
-                    @ApiResponse(responseCode = "404", description = "No inventory record for this SKU", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
-            })
-    @DeleteMapping("/{skuCode}")
-    public ResponseEntity<Void> deleteInventory(@PathVariable String skuCode) {
-        inventoryService.deleteInventory(skuCode);
-        return ResponseEntity.noContent().build();
     }
 }

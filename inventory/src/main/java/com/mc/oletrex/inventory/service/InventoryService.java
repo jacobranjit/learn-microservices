@@ -3,12 +3,12 @@ package com.mc.oletrex.inventory.service;
 import com.mc.oletrex.inventory.dto.CursorPage;
 import com.mc.oletrex.inventory.dto.InventoryRequest;
 import com.mc.oletrex.inventory.dto.InventoryResponse;
-import com.mc.oletrex.inventory.dto.InventoryUpdateRequest;
+import com.mc.oletrex.inventory.dto.InventoryUpsertResult;
 
 public interface InventoryService {
 
-    /** @throws com.mc.oletrex.inventory.exception.InventoryAlreadyExistsException if the SKU already has a record */
-    InventoryResponse createInventory(InventoryRequest request);
+    /** Sets the stock level of a SKU: creates the record if the SKU has none, otherwise updates it. */
+    InventoryUpsertResult saveInventory(InventoryRequest request);
 
     /** @throws com.mc.oletrex.inventory.exception.InventoryNotFoundException if the SKU has no record */
     InventoryResponse getInventory(String skuCode);
@@ -22,9 +22,4 @@ public interface InventoryService {
      */
     CursorPage<InventoryResponse> getInventoryPage(String cursor, int limit);
 
-    /** @throws com.mc.oletrex.inventory.exception.InventoryNotFoundException if the SKU has no record */
-    InventoryResponse updateInventory(String skuCode, InventoryUpdateRequest request);
-
-    /** @throws com.mc.oletrex.inventory.exception.InventoryNotFoundException if the SKU has no record */
-    void deleteInventory(String skuCode);
 }

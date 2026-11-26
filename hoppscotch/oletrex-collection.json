@@ -573,7 +573,7 @@
       "requests": [
         {
           "v": "17",
-          "name": "Create Inventory",
+          "name": "Save Inventory - new SKU (creates)",
           "method": "POST",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory",
           "params": [],
@@ -597,11 +597,11 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Creates a stock record. Pre-request script generates a unique <<inventorySkuCode>> so the flow can be re-run. Returns 201 with a Location header."
+          "description": "POST creates the record when the SKU has none: 201 with a Location header. Pre-request script generates a unique <<inventorySkuCode>> so the flow can be re-run."
         },
         {
           "v": "17",
-          "name": "Create Inventory - duplicate SKU",
+          "name": "Save Inventory - existing SKU (updates)",
           "method": "POST",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory",
           "params": [],
@@ -614,22 +614,22 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Inventory Already Exists'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Inventory Already Exists\");\n});",
+          "testScript": "pw.test(\"Status is 200 OK (updated, not created)\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Quantity is 0 and out of stock\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n  pw.expect(pw.response.body.inStock).toBe(false);\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"quantity\": 1\n}"
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"quantity\": 0\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Same SKU as 'Create Inventory'. Expects 409 'Inventory Already Exists'."
+          "description": "Same SKU again: POST updates the quantity of the existing record and returns 200."
         },
         {
           "v": "17",
-          "name": "Create Inventory - validation error",
+          "name": "Save Inventory - validation error",
           "method": "POST",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory",
           "params": [],
@@ -781,7 +781,7 @@
           "params": [],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested SKU\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested SKU\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n});\npw.test(\"Shows the updated quantity\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
@@ -796,86 +796,9 @@
         },
         {
           "v": "17",
-          "name": "Update Inventory",
-          "method": "PUT",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Quantity is 0 and out of stock\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n  pw.expect(pw.response.body.inStock).toBe(false);\n});",
-          "auth": {
-            "authType": "inherit",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"quantity\": 0\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Sets the stock level (SKU cannot change). Setting 0 makes inStock false."
-        },
-        {
-          "v": "17",
-          "name": "Update Inventory - validation error",
-          "method": "PUT",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
-          "auth": {
-            "authType": "inherit",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"quantity\": -1\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Negative quantity. Expects 400."
-        },
-        {
-          "v": "17",
-          "name": "Delete Inventory",
-          "method": "DELETE",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 204 No Content\", () => {\n  pw.expect(pw.response.status).toBe(204);\n});",
-          "auth": {
-            "authType": "inherit",
-            "authActive": true
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Deletes the stock record. 204, or 404 if missing."
-        },
-        {
-          "v": "17",
           "name": "Get Inventory - not found",
           "method": "GET",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/NO-SUCH-SKU",
           "params": [],
           "headers": [],
           "preRequestScript": "",
@@ -890,7 +813,7 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Run after 'Delete Inventory': expects 404 'Inventory Not Found'."
+          "description": "A SKU with no inventory record. Expects 404 'Inventory Not Found'."
         }
       ],
       "auth": {

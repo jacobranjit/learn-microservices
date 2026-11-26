@@ -1,5 +1,6 @@
 package com.mc.oletrex.auth.exception;
 
+import com.mc.oletrex.auth.client.CustomerServiceUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,6 +25,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
         problem.setTitle("Invalid Credentials");
+        return problem;
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ProblemDetail handleEmailTaken(EmailAlreadyRegisteredException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Email Already Registered");
+        return problem;
+    }
+
+    @ExceptionHandler(CustomerServiceUnavailableException.class)
+    public ProblemDetail handleCustomerDown(CustomerServiceUnavailableException ex) {
+        log.warn("Customer service unavailable: {}", ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE, "Registration is temporarily unavailable, please try again later.");
+        problem.setTitle("Service Unavailable");
         return problem;
     }
 

@@ -146,6 +146,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      auth:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
       interval: 10s
@@ -157,6 +159,38 @@ services:
         limits:
           cpus: "${CUSTOMER_CPUS:-0.5}"
           memory: "${CUSTOMER_MEMORY:-768M}"
+
+  auth:
+    <<: *java-service
+    build: ./auth
+    image: oletrex/auth:latest
+    container_name: oletrex-auth
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/auth_db
+      CUSTOMER_SERVICE_URL: http://customer:8085
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@oletrex.local}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-Admin123!}"
+      ORDER_SERVICE_SECRET: "${ORDER_SERVICE_SECRET:-order-dev-secret}"
+      INVENTORY_SERVICE_SECRET: "${INVENTORY_SERVICE_SECRET:-inventory-dev-secret}"
+      JWT_TTL: "${JWT_TTL:-1h}"
+      AUTH_ISSUER: "${AUTH_ISSUER:-oletrex-auth}"
+    ports:
+      - "${AUTH_PORT:-8086}:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8086/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: "${AUTH_CPUS:-0.5}"
+          memory: "${AUTH_MEMORY:-768M}"
 
   # Only started with --profile seed. Populates the CSV master data once product and
   # inventory are healthy, then stays up so populate can be re-run on port 8084.

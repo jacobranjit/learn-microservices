@@ -1765,6 +1765,239 @@
       "variables": [],
       "preRequestScript": "",
       "testScript": ""
+    },
+    {
+      "v": 12,
+      "name": "Auth Service",
+      "description": "Registration, login, service tokens and the public signing keys (port 8086). Run top to bottom: Register stores <<accessToken>>, Admin login stores <<adminToken>>.",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Register",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"registerEmail\", \"user\" + Date.now() + \"@example.com\");",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates the account and the customer profile, returns a USER token and stores it as <<accessToken>>. Generates a unique <<registerEmail>>."
+        },
+        {
+          "v": "17",
+          "name": "Login",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Logs in the account created by Register (email is case-insensitive). Run Register first."
+        },
+        {
+          "v": "17",
+          "name": "Admin login",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"adminToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"admin@oletrex.local\",\n  \"password\": \"Admin123!\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Logs in the first admin (ADMIN_EMAIL / ADMIN_PASSWORD from .env, dev defaults shown) and stores <<adminToken>>."
+        },
+        {
+          "v": "17",
+          "name": "Service token",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/token",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"clientId\": \"order-service\",\n  \"clientSecret\": \"order-dev-secret\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Client-credentials token for service-to-service calls (SERVICE role)."
+        },
+        {
+          "v": "17",
+          "name": "JWKS",
+          "method": "GET",
+          "endpoint": "<<authBaseUrl>>/.well-known/jwks.json",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Publishes at least one RSA key\", () => {\n  pw.expect(pw.response.body.keys.length).toBeGreaterThan(0);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Public signing keys the other services use to verify tokens."
+        },
+        {
+          "v": "17",
+          "name": "Register - duplicate email (409)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"Passw0rd!\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Same email as Register; run Register first."
+        },
+        {
+          "v": "17",
+          "name": "Login - wrong password (401)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 401 Unauthorized\", () => {\n  pw.expect(pw.response.status).toBe(401);\n});\npw.test(\"Message does not reveal which part was wrong\", () => {\n  pw.expect(pw.response.body.detail).toBe(\"Invalid email or password\");\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<registerEmail>>\",\n  \"password\": \"wrong-password\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Wrong password and unknown email give the same answer."
+        },
+        {
+          "v": "17",
+          "name": "Register - short password (400)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/register",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"short@example.com\",\n  \"password\": \"short\",\n  \"name\": \"Alice Example\",\n  \"phone\": \"+1 555 0100\",\n  \"deliveryAddress\": {\n    \"line1\": \"1 Main St\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"country\": \"US\"\n  }\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Password must be 8-100 characters."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
     }
   ],
   "requests": [],
@@ -1802,6 +2035,24 @@
       "key": "customerBaseUrl",
       "initialValue": "http://localhost:8085",
       "currentValue": "http://localhost:8085",
+      "secret": false
+    },
+    {
+      "key": "authBaseUrl",
+      "initialValue": "http://localhost:8086",
+      "currentValue": "http://localhost:8086",
+      "secret": false
+    },
+    {
+      "key": "accessToken",
+      "initialValue": "",
+      "currentValue": "",
+      "secret": false
+    },
+    {
+      "key": "adminToken",
+      "initialValue": "",
+      "currentValue": "",
       "secret": false
     }
   ],

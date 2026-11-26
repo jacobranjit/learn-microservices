@@ -18,11 +18,13 @@ public class ProductClient {
 
     public ProductClient(@Value("${services.product.base-url}") String baseUrl,
                          @Value("${services.http.connect-timeout}") Duration connectTimeout,
-                         @Value("${services.http.read-timeout}") Duration readTimeout) {
+                         @Value("${services.http.read-timeout}") Duration readTimeout,
+                         ServiceTokenInterceptor serviceTokenInterceptor) {
         JdkClientHttpRequestFactory requestFactory =
                 new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(connectTimeout).build());
         requestFactory.setReadTimeout(readTimeout);
-        this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
+        this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory)
+                .requestInterceptor(serviceTokenInterceptor).build();
     }
 
     /**

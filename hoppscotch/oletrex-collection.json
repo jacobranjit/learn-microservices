@@ -112,8 +112,9 @@
           "preRequestScript": "pw.env.set(\"orderLocationCode\", \"ORDWH-\" + Date.now());",
           "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -140,8 +141,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -189,8 +191,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"3 units left\", () => {\n  pw.expect(pw.response.body.quantity).toBe(3);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<adminToken>>"
           },
           "body": {
             "contentType": null,
@@ -1125,8 +1128,9 @@
         }
       ],
       "auth": {
-        "authType": "inherit",
-        "authActive": true
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<adminToken>>"
       },
       "headers": [],
       "variables": [],
@@ -1401,8 +1405,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Supplied by location 1, 20 left there\", () => {\n  pw.expect(pw.response.body.locationCode).toBe(pw.env.get(\"invLocation1\"));\n  pw.expect(pw.response.body.items[0].quantity).toBe(20);\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<serviceToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -1429,8 +1434,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'No Single Location'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"No Single Location\");\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<serviceToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -1457,8 +1463,9 @@
           "preRequestScript": "",
           "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Insufficient Stock'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Insufficient Stock\");\n});\npw.test(\"Only the unknown SKU is short\", () => {\n  pw.expect(pw.response.body.shortages.length).toBe(1);\n  pw.expect(pw.response.body.shortages[0].skuCode).toBe(\"NO-SUCH-SKU\");\n});",
           "auth": {
-            "authType": "inherit",
-            "authActive": true
+            "authType": "bearer",
+            "authActive": true,
+            "token": "<<serviceToken>>"
           },
           "body": {
             "contentType": "application/json",
@@ -1467,6 +1474,34 @@
           "requestVariables": [],
           "responses": {},
           "description": "Includes a SKU with no stock anywhere. Expects 409 'Insufficient Stock' listing it; nothing is deducted."
+        },
+        {
+          "v": "17",
+          "name": "Deduction as admin - 403",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 403 Forbidden\", () => {\n  pw.expect(pw.response.status).toBe(403);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 5\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Deductions are for the SERVICE role only: an admin token is refused."
         },
         {
           "v": "17",
@@ -1665,8 +1700,9 @@
         }
       ],
       "auth": {
-        "authType": "inherit",
-        "authActive": true
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<adminToken>>"
       },
       "headers": [],
       "variables": [],
@@ -1919,7 +1955,7 @@
         },
         {
           "v": "17",
-          "name": "Service token",
+          "name": "Service token (order)",
           "method": "POST",
           "endpoint": "<<authBaseUrl>>/api/auth/token",
           "params": [],
@@ -1932,7 +1968,7 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns a Bearer token\", () => {\n  pw.expect(pw.response.body.tokenType).toBe(\"Bearer\");\n});\npw.env.set(\"serviceToken\", pw.response.body.accessToken);",
           "auth": {
             "authType": "none",
             "authActive": true
@@ -1943,7 +1979,7 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Client-credentials token for service-to-service calls (SERVICE role)."
+          "description": "Client-credentials token for the order service (SERVICE role). Stores <<serviceToken>>, used by the inventory Deductions requests."
         },
         {
           "v": "17",

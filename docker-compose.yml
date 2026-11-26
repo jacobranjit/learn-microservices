@@ -87,12 +87,17 @@ services:
       <<: *java-env
       DB_URL: jdbc:postgresql://postgres:5432/inventory_db
       PRODUCT_SERVICE_URL: http://product:8082
+      AUTH_JWKS_URL: http://auth:8086/.well-known/jwks.json
+      AUTH_SERVICE_URL: http://auth:8086
+      INVENTORY_SERVICE_SECRET: "${INVENTORY_SERVICE_SECRET:-inventory-dev-secret}"
     ports:
       - "${INVENTORY_PORT:-8083}:8083"
     depends_on:
       postgres:
         condition: service_healthy
       product:
+        condition: service_started
+      auth:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]

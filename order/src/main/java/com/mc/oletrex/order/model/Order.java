@@ -45,23 +45,23 @@ public class Order {
 
     @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name = "line1", column = @Column(name = "shipping_line1", nullable = false)),
-            @AttributeOverride(name = "line2", column = @Column(name = "shipping_line2")),
-            @AttributeOverride(name = "city", column = @Column(name = "shipping_city", nullable = false)),
-            @AttributeOverride(name = "state", column = @Column(name = "shipping_state")),
-            @AttributeOverride(name = "postalCode", column = @Column(name = "shipping_postal_code", nullable = false)),
-            @AttributeOverride(name = "country", column = @Column(name = "shipping_country", nullable = false))
+            @AttributeOverride(name = "line1", column = @Column(name = "shipping_line1", nullable = false, length = 200)),
+            @AttributeOverride(name = "line2", column = @Column(name = "shipping_line2", length = 200)),
+            @AttributeOverride(name = "city", column = @Column(name = "shipping_city", nullable = false, length = 100)),
+            @AttributeOverride(name = "state", column = @Column(name = "shipping_state", length = 100)),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "shipping_postal_code", nullable = false, length = 20)),
+            @AttributeOverride(name = "country", column = @Column(name = "shipping_country", nullable = false, length = 2))
     })
     private OrderAddress shippingAddress;
 
     @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name = "line1", column = @Column(name = "billing_line1", nullable = false)),
-            @AttributeOverride(name = "line2", column = @Column(name = "billing_line2")),
-            @AttributeOverride(name = "city", column = @Column(name = "billing_city", nullable = false)),
-            @AttributeOverride(name = "state", column = @Column(name = "billing_state")),
-            @AttributeOverride(name = "postalCode", column = @Column(name = "billing_postal_code", nullable = false)),
-            @AttributeOverride(name = "country", column = @Column(name = "billing_country", nullable = false))
+            @AttributeOverride(name = "line1", column = @Column(name = "billing_line1", nullable = false, length = 200)),
+            @AttributeOverride(name = "line2", column = @Column(name = "billing_line2", length = 200)),
+            @AttributeOverride(name = "city", column = @Column(name = "billing_city", nullable = false, length = 100)),
+            @AttributeOverride(name = "state", column = @Column(name = "billing_state", length = 100)),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "billing_postal_code", nullable = false, length = 20)),
+            @AttributeOverride(name = "country", column = @Column(name = "billing_country", nullable = false, length = 2))
     })
     private OrderAddress billingAddress;
 

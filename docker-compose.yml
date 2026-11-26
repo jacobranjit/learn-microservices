@@ -7,6 +7,7 @@
 #   Status / usage:      docker compose ps    |    docker stats
 #   Stop:                docker compose down                   (add -v to also wipe the data)
 #
+# Database credentials come from .env (POSTGRES_USER / POSTGRES_PASSWORD); set your own on any server.
 # Limits default to the values below; override any of them with environment variables
 # or an .env file next to this file (see .env.example).
 # Sized for a 4-core / 8 GB machine: worst case (every container at its limit) is 4.5 GB RAM.
@@ -17,8 +18,9 @@ x-java-service: &java-service
   environment: &java-env
     # Heap = 75% of the container's memory limit; restart instead of limping on after OutOfMemoryError.
     JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
-    DB_USERNAME: oletrex
-    DB_PASSWORD: oletrex   # local dev only
+    # Same credentials as the postgres container below (from .env; defaults are for local dev only).
+    DB_USERNAME: "${POSTGRES_USER:-oletrex}"
+    DB_PASSWORD: "${POSTGRES_PASSWORD:-oletrex}"
 
 services:
   postgres:
@@ -26,8 +28,9 @@ services:
     container_name: oletrex-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: oletrex
-      POSTGRES_PASSWORD: oletrex   # local dev only
+      # Applied only when the database is first created (empty volume); see .env.example.
+      POSTGRES_USER: "${POSTGRES_USER:-oletrex}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-oletrex}"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -35,7 +38,7 @@ services:
       # Runs once, on first start with an empty volume: creates one database per service.
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oletrex"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\""]
       interval: 5s
       timeout: 3s
       retries: 10

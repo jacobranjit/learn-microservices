@@ -6,11 +6,12 @@
     {
       "v": 12,
       "name": "Master Data Service",
-      "description": "MasterDataController - /api/master-data (port 8084). Loads 1 location, 2000 products and their stock from CSV files. Product and inventory services must be running.",
+      "description": "MasterDataController - /api/master-data (port 8084). Loads 1 location, 2000 products, their stock and 300 customers from CSV files. Needs an ADMIN token (<<adminToken>>, run Auth Service > Admin login first); auth, customer, product and inventory services must be running.",
       "folders": [],
       "auth": {
-        "authType": "inherit",
-        "authActive": true
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<adminToken>>"
       },
       "headers": [],
       "variables": [],
@@ -25,7 +26,7 @@
           "params": [],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"CSVs hold 1 location, 2000 products and 2000 stock rows\", () => {\n  pw.expect(pw.response.body.locations).toBe(1);\n  pw.expect(pw.response.body.products).toBe(2000);\n  pw.expect(pw.response.body.inventory).toBe(2000);\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"CSVs hold 1 location, 2000 products, 2000 stock rows and 300 customers\", () => {\n  pw.expect(pw.response.body.locations).toBe(1);\n  pw.expect(pw.response.body.products).toBe(2000);\n  pw.expect(pw.response.body.inventory).toBe(2000);\n  pw.expect(pw.response.body.customers).toBe(300);\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
@@ -46,7 +47,7 @@
           "params": [],
           "headers": [],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Every row was created or updated\", () => {\n  pw.expect(pw.response.body.success).toBe(true);\n  pw.expect(pw.response.body.products.failed).toBe(0);\n  pw.expect(pw.response.body.inventory.failed).toBe(0);\n  pw.expect(pw.response.body.products.created + pw.response.body.products.updated).toBe(2000);\n});",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Every row was created or updated\", () => {\n  pw.expect(pw.response.body.success).toBe(true);\n  pw.expect(pw.response.body.products.failed).toBe(0);\n  pw.expect(pw.response.body.inventory.failed).toBe(0);\n  pw.expect(pw.response.body.customers.failed).toBe(0);\n  pw.expect(pw.response.body.customers.created + pw.response.body.customers.updated).toBe(300);\n  pw.expect(pw.response.body.products.created + pw.response.body.products.updated).toBe(2000);\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
@@ -57,7 +58,35 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Creates the CSV records, or resets them to the CSV values if they already exist. Takes a few seconds. 503 if the product or inventory service is down; 409 if a run is already in progress."
+          "description": "Creates the CSV records, or resets them to the CSV values if they already exist (customers are registered with MASTERDATA_CUSTOMER_PASSWORD, or logged in as and updated). Takes a few seconds. Needs an ADMIN token: 401 without one, 403 for a user. 503 if the auth, customer, product or inventory service is down; 409 if a run is already in progress."
+        },
+        {
+          "v": "17",
+          "name": "Customer login (seeded)",
+          "method": "POST",
+          "endpoint": "<<authBaseUrl>>/api/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"accessToken\", pw.response.body.accessToken);",
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"customer001@example.com\",\n  \"password\": \"Customer123!\"\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Logs in a customer created by Master Data > Populate (MASTERDATA_CUSTOMER_PASSWORD, dev default shown) and stores <<accessToken>>. Run Populate first."
         }
       ]
     },

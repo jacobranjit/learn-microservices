@@ -1,8 +1,10 @@
 package com.mc.oletrex.masterdata.client;
 
+import com.mc.oletrex.masterdata.csv.CustomerRow;
 import com.mc.oletrex.masterdata.csv.InventoryRow;
 import com.mc.oletrex.masterdata.csv.LocationRow;
 import com.mc.oletrex.masterdata.csv.ProductRow;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -15,22 +17,32 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.net.http.HttpClient;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Calls the product and inventory APIs. Every save is "create, or reset to these values if it
- * already exists": POST first; on 409 the record exists, so PUT it with the CSV values.
+ * Calls the product, inventory, auth and customer APIs. Every save is "create, or reset to these
+ * values if it already exists": POST first; on 409 the record exists, so PUT it with the CSV values.
+ * Product and inventory calls carry an admin token; customers are registered (or logged in as and
+ * updated) with their own credentials.
  */
 @Component
 public class ServicesClient {
 
     private final RestClient productApi;
     private final RestClient inventoryApi;
+    private final RestClient authApi;
+    private final RestClient customerApi;
 
+    @Autowired
     public ServicesClient(@Value("${services.product.base-url}") String productBaseUrl,
                           @Value("${services.inventory.base-url}") String inventoryBaseUrl,
+                          @Value("${services.auth.base-url}") String authBaseUrl,
+                          @Value("${services.customer.base-url}") String customerBaseUrl,
+                          @Value("${masterdata.admin.email}") String adminEmail,
+                          @Value("${masterdata.admin.password}") String adminPassword,
                           @Value("${services.http.connect-timeout}") Duration connectTimeout,
                           @Value("${services.http.read-timeout}") Duration readTimeout) {
         HttpClient httpClient = HttpClient.newBuilder()
@@ -39,12 +51,28 @@ public class ServicesClient {
                 .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(readTimeout);
-        this.productApi = RestClient.builder().baseUrl(productBaseUrl).requestFactory(requestFactory).build();
-        this.inventoryApi = RestClient.builder().baseUrl(inventoryBaseUrl).requestFactory(requestFactory).build();
+        this.authApi = RestClient.builder().baseUrl(authBaseUrl).requestFactory(requestFactory).build();
+        this.customerApi = RestClient.builder().baseUrl(customerBaseUrl).requestFactory(requestFactory).build();
+        BearerInterceptor adminToken = new BearerInterceptor(
+                new AdminTokenProvider(authApi, adminEmail, adminPassword, Clock.systemUTC()));
+        this.productApi = RestClient.builder().baseUrl(productBaseUrl).requestFactory(requestFactory)
+                .requestInterceptor(adminToken).build();
+        this.inventoryApi = RestClient.builder().baseUrl(inventoryBaseUrl).requestFactory(requestFactory)
+                .requestInterceptor(adminToken).build();
     }
 
-    /** Fails fast if either service is down, instead of failing thousands of calls one by one. */
+    /** For tests: the four API clients ready-made. */
+    ServicesClient(RestClient productApi, RestClient inventoryApi, RestClient authApi, RestClient customerApi) {
+        this.productApi = productApi;
+        this.inventoryApi = inventoryApi;
+        this.authApi = authApi;
+        this.customerApi = customerApi;
+    }
+
+    /** Fails fast if a service is down, instead of failing thousands of calls one by one. */
     public void checkServicesReachable() {
+        ping(authApi, "/.well-known/jwks.json", "Auth");
+        ping(customerApi, "/actuator/health", "Customer");
         ping(productApi, "/api/products?limit=1", "Product");
         ping(inventoryApi, "/api/locations?limit=1", "Inventory");
     }
@@ -83,6 +111,40 @@ public class ServicesClient {
                     new Payloads.Inventory(row.skuCode(), row.locationCode(), row.quantity()));
             return response.getStatusCode().isSameCodeAs(HttpStatus.CREATED) ? Outcome.CREATED : Outcome.UPDATED;
         });
+    }
+
+    /**
+     * Registers the customer; if the email is taken, logs in with the seed password and resets the
+     * profile through {@code PUT /api/customers/me}. Neither call carries the admin token.
+     */
+    public Outcome saveCustomer(CustomerRow row, String password) {
+        Payloads.Address address = new Payloads.Address(row.line1(), row.line2(), row.city(), row.state(),
+                row.postalCode(), row.country());
+        return call(() -> {
+            try {
+                authApi.post().uri("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .body(new Payloads.Register(row.email(), password, row.name(), row.phone(), address))
+                        .retrieve().toBodilessEntity();
+                return Outcome.CREATED;
+            } catch (HttpClientErrorException.Conflict alreadyExists) {
+                String token = login(row.email(), password);
+                customerApi.put().uri("/api/customers/me").contentType(MediaType.APPLICATION_JSON)
+                        .headers(h -> h.setBearerAuth(token))
+                        .body(new Payloads.CustomerUpdate(row.name(), row.phone(), address))
+                        .retrieve().toBodilessEntity();
+                return Outcome.UPDATED;
+            }
+        });
+    }
+
+    private String login(String email, String password) {
+        try {
+            Map<?, ?> response = authApi.post().uri("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .body(new Payloads.Login(email, password)).retrieve().body(Map.class);
+            return String.valueOf(response.get("accessToken"));
+        } catch (HttpClientErrorException.Unauthorized e) {
+            throw new ApiCallException("customer exists but the seed password no longer works (401 on login)");
+        }
     }
 
     // --- helpers ---

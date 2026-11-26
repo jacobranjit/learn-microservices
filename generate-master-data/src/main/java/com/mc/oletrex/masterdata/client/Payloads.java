@@ -38,6 +38,19 @@ final class Payloads {
     record Image(String url, String altText) {
     }
 
+    record Register(String email, String password, String name, String phone, Address deliveryAddress) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record Address(String line1, String line2, String city, String state, String postalCode, String country) {
+    }
+
+    record CustomerUpdate(String name, String phone, Address deliveryAddress) {
+    }
+
+    record Login(String email, String password) {
+    }
+
     record Inventory(String skuCode, String locationCode, Integer quantity) {
     }
 }

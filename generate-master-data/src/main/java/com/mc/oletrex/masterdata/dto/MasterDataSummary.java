@@ -5,6 +5,7 @@ public record MasterDataSummary(
         String source,
         int locations,
         int products,
-        int inventory
+        int inventory,
+        int customers
 ) {
 }

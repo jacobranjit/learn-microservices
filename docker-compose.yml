@@ -206,8 +206,8 @@ services:
           cpus: "${AUTH_CPUS:-0.5}"
           memory: "${AUTH_MEMORY:-768M}"
 
-  # Only started with --profile seed. Populates the CSV master data once product and
-  # inventory are healthy, then stays up so populate can be re-run on port 8084.
+  # Only started with --profile seed. Populates the CSV master data once product, inventory,
+  # auth and customer are healthy, then stays up so populate can be re-run on port 8084.
   generate-master-data:
     <<: *java-service
     build: ./generate-master-data
@@ -219,6 +219,13 @@ services:
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
       PRODUCT_SERVICE_URL: http://product:8082
       INVENTORY_SERVICE_URL: http://inventory:8083
+      AUTH_SERVICE_URL: http://auth:8086
+      CUSTOMER_SERVICE_URL: http://customer:8085
+      AUTH_JWKS_URL: http://auth:8086/.well-known/jwks.json
+      AUTH_ISSUER: "${AUTH_ISSUER:-oletrex-auth}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@oletrex.local}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-Admin123!}"
+      MASTERDATA_CUSTOMER_PASSWORD: "${MASTERDATA_CUSTOMER_PASSWORD:-Customer123!}"
       MASTERDATA_POPULATE_ON_STARTUP: "true"
     ports:
       - "${MASTERDATA_PORT:-8084}:8084"
@@ -226,6 +233,10 @@ services:
       product:
         condition: service_healthy
       inventory:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+      customer:
         condition: service_healthy
     deploy:
       resources:

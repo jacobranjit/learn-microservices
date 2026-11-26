@@ -33,10 +33,10 @@ public class MasterDataController {
         return masterDataService.summary();
     }
 
-    @Operation(summary = "Populate locations, products and stock from the CSV files",
-            description = "Calls the inventory and product APIs: locations first, then products, then stock. "
+    @Operation(summary = "Populate locations, products, stock and customers from the CSV files",
+            description = "Calls the inventory and product APIs: locations first, then products, stock, then customers. "
                     + "Records that already exist are reset to the CSV values, so it is safe to run again. "
-                    + "Product and inventory services must be running.",
+                    + "Auth, customer, product and inventory services must be running. Requires an ADMIN token.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Finished; see success, the per-step counts and errors"),
                     @ApiResponse(responseCode = "409", description = "A populate run is already in progress", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),

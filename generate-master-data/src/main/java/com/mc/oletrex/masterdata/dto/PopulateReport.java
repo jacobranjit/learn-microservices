@@ -13,6 +13,7 @@ public record PopulateReport(
         StepReport locations,
         StepReport products,
         StepReport inventory,
+        StepReport customers,
         List<RowError> errors
 ) {
 }

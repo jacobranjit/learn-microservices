@@ -50,7 +50,8 @@ public class MasterDataCsvReader {
         return new MasterData(source,
                 read("locations.csv", this::toLocation),
                 read("products.csv", this::toProduct),
-                read("inventory.csv", this::toInventory));
+                read("inventory.csv", this::toInventory),
+                read("customers.csv", this::toCustomer));
     }
 
     private <T> List<T> read(String fileName, Function<CSVRecord, T> mapper) {
@@ -104,6 +105,11 @@ public class MasterDataCsvReader {
 
     private InventoryRow toInventory(CSVRecord r) {
         return new InventoryRow(text(r, "skuCode"), text(r, "locationCode"), integer(r, "quantity"));
+    }
+
+    private CustomerRow toCustomer(CSVRecord r) {
+        return new CustomerRow(text(r, "email"), text(r, "name"), text(r, "phone"), text(r, "line1"),
+                text(r, "line2"), text(r, "city"), text(r, "state"), text(r, "postalCode"), text(r, "country"));
     }
 
     // --- value helpers: empty cells become null ---

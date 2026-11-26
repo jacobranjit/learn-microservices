@@ -24,7 +24,8 @@ import java.util.function.Function;
 
 /**
  * Loads the CSV master data into the other services through their APIs, in dependency order:
- * locations, then products, then stock (inventory checks that the product and location exist).
+ * locations, then products, then stock (inventory checks that the product and location exist),
+ * then customers (registered through the auth service).
  * Running it again resets every record listed in the CSVs back to its CSV values.
  */
 @Service
@@ -36,10 +37,13 @@ public class MasterDataService {
     private final MasterDataCsvReader csvReader;
     private final ServicesClient client;
     private final int parallelism;
+    private final String customerPassword;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     public MasterDataService(MasterDataCsvReader csvReader, ServicesClient client,
-                             @Value("${masterdata.parallelism}") int parallelism) {
+                             @Value("${masterdata.parallelism}") int parallelism,
+                             @Value("${masterdata.customer-password}") String customerPassword) {
+        this.customerPassword = customerPassword;
         this.csvReader = csvReader;
         this.client = client;
         this.parallelism = Math.max(1, parallelism);
@@ -48,7 +52,7 @@ public class MasterDataService {
     public MasterDataSummary summary() {
         MasterData data = csvReader.read();
         return new MasterDataSummary(data.source(), data.locations().size(), data.products().size(),
-                data.inventory().size());
+                data.inventory().size(), data.customers().size());
     }
 
     /**
@@ -70,13 +74,15 @@ public class MasterDataService {
             StepReport products = runStep("products", data.products(), r -> r.skuCode(), client::saveProduct, errors);
             StepReport inventory = runStep("inventory", data.inventory(),
                     r -> r.skuCode() + "@" + r.locationCode(), client::saveInventory, errors);
+            StepReport customers = runStep("customers", data.customers(), r -> r.email(),
+                    r -> client.saveCustomer(r, customerPassword), errors);
 
             long durationMs = (System.nanoTime() - start) / 1_000_000;
-            boolean success = locations.failed() + products.failed() + inventory.failed() == 0;
+            boolean success = locations.failed() + products.failed() + inventory.failed() + customers.failed() == 0;
             PopulateReport report = new PopulateReport(success, data.source(), durationMs, locations, products,
-                    inventory, List.copyOf(errors));
-            log.info("Master data populated in {} ms: locations {}, products {}, inventory {}",
-                    durationMs, locations, products, inventory);
+                    inventory, customers, List.copyOf(errors));
+            log.info("Master data populated in {} ms: locations {}, products {}, inventory {}, customers {}",
+                    durationMs, locations, products, inventory, customers);
             return report;
         } finally {
             running.set(false);

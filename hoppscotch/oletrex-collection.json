@@ -5,6 +5,64 @@
   "folders": [
     {
       "v": 12,
+      "name": "Master Data Service",
+      "description": "MasterDataController - /api/master-data (port 8084). Loads 1 location, 2000 products and their stock from CSV files. Product and inventory services must be running.",
+      "folders": [],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "requests": [
+        {
+          "v": "17",
+          "name": "Show CSV summary",
+          "method": "GET",
+          "endpoint": "<<masterDataBaseUrl>>/api/master-data",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"CSVs hold 1 location, 2000 products and 2000 stock rows\", () => {\n  pw.expect(pw.response.body.locations).toBe(1);\n  pw.expect(pw.response.body.products).toBe(2000);\n  pw.expect(pw.response.body.inventory).toBe(2000);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Row counts in the CSV files that populate would load."
+        },
+        {
+          "v": "17",
+          "name": "Populate master data",
+          "method": "POST",
+          "endpoint": "<<masterDataBaseUrl>>/api/master-data/populate",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Every row was created or updated\", () => {\n  pw.expect(pw.response.body.success).toBe(true);\n  pw.expect(pw.response.body.products.failed).toBe(0);\n  pw.expect(pw.response.body.inventory.failed).toBe(0);\n  pw.expect(pw.response.body.products.created + pw.response.body.products.updated).toBe(2000);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates the CSV records, or resets them to the CSV values if they already exist. Takes a few seconds. 503 if the product or inventory service is down; 409 if a run is already in progress."
+        }
+      ]
+    },
+    {
+      "v": 12,
       "name": "Order Service",
       "description": "OrderController - /api/orders (port 8081). Placing an order calls the product and inventory services, so all three must be running.",
       "folders": [],
@@ -1578,6 +1636,12 @@
       "key": "inventoryBaseUrl",
       "initialValue": "http://localhost:8083",
       "currentValue": "http://localhost:8083",
+      "secret": false
+    },
+    {
+      "key": "masterDataBaseUrl",
+      "initialValue": "http://localhost:8084",
+      "currentValue": "http://localhost:8084",
       "secret": false
     }
   ],

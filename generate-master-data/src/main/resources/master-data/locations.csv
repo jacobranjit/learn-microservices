@@ -1,0 +1,2 @@
+code,name,type,addressLine,city,state,postalCode,country,priority,active
+MAIN-WH,Main Warehouse,WAREHOUSE,12 Industrial Area,Bengaluru,Karnataka,560058,IN,1,true

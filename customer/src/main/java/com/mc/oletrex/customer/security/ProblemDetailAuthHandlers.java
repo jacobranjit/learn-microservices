@@ -2,6 +2,7 @@ package com.mc.oletrex.customer.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -18,11 +19,16 @@ import java.io.IOException;
 @Component
 public class ProblemDetailAuthHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
 
-    private final JsonMapper mapper = JsonMapper.builder().build();
+    private final JsonMapper mapper;
+
+    public ProblemDetailAuthHandlers(JsonMapper mapper) {
+        this.mapper = mapper;
+    }
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException ex) throws IOException {
+        response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         write(response, HttpStatus.UNAUTHORIZED, "Unauthorized", "Authentication is required or the token is invalid.");
     }
 

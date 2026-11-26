@@ -17,7 +17,8 @@ import lombok.Setter;
 
 import java.time.Instant;
 
-/** A customer profile. Credentials and activation live in the auth service (linked by authUserId). */
+/** A customer profile. Credentials and activation live in the auth service (linked by authUserId).
+ * There is deliberately no "active" flag: disabling a person is done by disabling their login account. */
 @Entity
 @Table(name = "customers")
 @Getter

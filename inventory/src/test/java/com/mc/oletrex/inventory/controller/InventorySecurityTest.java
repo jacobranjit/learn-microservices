@@ -99,6 +99,15 @@ class InventorySecurityTest {
     }
 
     @Test
+    void serviceTokenOfAnotherServiceCannotDeduct() throws Exception {
+        mvc.perform(post("/api/inventory/deductions").with(TestTokens.service("inventory-service"))
+                .contentType(MediaType.APPLICATION_JSON).content(DEDUCT))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("Forbidden"));
+        verifyNoInteractions(inventoryService);
+    }
+
+    @Test
     void adminAndUserCannotDeduct() throws Exception {
         mvc.perform(post("/api/inventory/deductions").with(TestTokens.admin())
                 .contentType(MediaType.APPLICATION_JSON).content(DEDUCT))

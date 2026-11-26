@@ -77,6 +77,23 @@ class CustomerControllerTest {
     }
 
     @Test
+    void serviceTokenOfAnotherServiceCannotCreateOrDelete() throws Exception {
+        mockMvc.perform(post("/api/customers").with(service("order-service"))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/customers/9").with(service("order-service"))).andExpect(status().isForbidden());
+        verifyNoInteractions(customerService);
+    }
+
+    @Test
+    void unauthorizedResponseAsksForBearerToken() throws Exception {
+        mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer"));
+    }
+
+    @Test
     void createAsUserIs403() throws Exception {
         mockMvc.perform(post("/api/customers").with(user(42))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))

@@ -27,7 +27,12 @@ public final class TestTokens {
     }
 
     public static RequestPostProcessor service() {
-        return token(j -> j.claim("roles", List.of("SERVICE")).subject("order-service"));
+        return token(j -> j.claim("roles", List.of("SERVICE")).subject("auth-service"));
+    }
+
+    /** A SERVICE token for the named client (the token's subject). */
+    public static RequestPostProcessor service(String clientId) {
+        return token(j -> j.claim("roles", List.of("SERVICE")).subject(clientId));
     }
 
     public static RequestPostProcessor noRoles() {

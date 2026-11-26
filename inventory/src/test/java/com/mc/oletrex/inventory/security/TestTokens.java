@@ -30,6 +30,11 @@ public final class TestTokens {
         return token(j -> j.claim("roles", List.of("SERVICE")).subject("order-service"));
     }
 
+    /** A SERVICE token for the named client (the token's subject). */
+    public static RequestPostProcessor service(String clientId) {
+        return token(j -> j.claim("roles", List.of("SERVICE")).subject(clientId));
+    }
+
     public static RequestPostProcessor noRoles() {
         return token(j -> j.subject("nobody"));
     }

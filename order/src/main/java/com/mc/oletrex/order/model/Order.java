@@ -43,6 +43,10 @@ public class Order {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /** Code of the inventory location that supplied every item; set when the order is CONFIRMED. */
+    @Column(length = 50)
+    private String fulfilmentLocationCode;
+
     /** Why the order was cancelled (unknown product, insufficient stock, ...); null otherwise. */
     @Column(length = 1000)
     private String statusReason;

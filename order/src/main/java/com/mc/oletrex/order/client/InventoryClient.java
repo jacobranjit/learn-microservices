@@ -24,19 +24,25 @@ public class InventoryClient {
     }
 
     /**
-     * Deducts all items in one all-or-nothing call.
+     * Deducts all items in one all-or-nothing call; inventory takes them all from a single location.
      *
-     * @throws InsufficientStockException  if any SKU is short (nothing was deducted)
+     * @return the code of the location that supplied the items
+     *
+     * @throws InsufficientStockException  if the items can't be supplied (nothing was deducted)
      * @throws DownstreamServiceException  if the inventory service cannot be reached or fails
      */
-    public void deductStock(List<StockItem> items) {
+    public String deductStock(List<StockItem> items) {
         try {
-            restClient.post()
+            StockDeductionResult result = restClient.post()
                     .uri("/api/inventory/deductions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("items", items))
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(StockDeductionResult.class);
+            if (result == null || result.locationCode() == null) {
+                throw new RestClientException("Inventory returned no location");
+            }
+            return result.locationCode();
         } catch (HttpClientErrorException.Conflict e) {
             Map<?, ?> problem = e.getResponseBodyAs(Map.class);
             Object detail = problem == null ? null : problem.get("detail");

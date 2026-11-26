@@ -27,6 +27,34 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(LocationNotFoundException.class)
+    public ProblemDetail handleLocationNotFound(LocationNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Location Not Found");
+        return problem;
+    }
+
+    @ExceptionHandler(LocationAlreadyExistsException.class)
+    public ProblemDetail handleLocationAlreadyExists(LocationAlreadyExistsException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Location Already Exists");
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidLocationException.class)
+    public ProblemDetail handleInvalidLocation(InvalidLocationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+        problem.setTitle("Invalid Location");
+        return problem;
+    }
+
+    @ExceptionHandler(NoSingleLocationException.class)
+    public ProblemDetail handleNoSingleLocation(NoSingleLocationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("No Single Location");
+        return problem;
+    }
+
     @ExceptionHandler(UnknownProductException.class)
     public ProblemDetail handleUnknownProduct(UnknownProductException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());

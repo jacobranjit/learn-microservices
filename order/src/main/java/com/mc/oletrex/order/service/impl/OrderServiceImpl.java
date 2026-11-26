@@ -56,9 +56,10 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             priceLineItems(placed);                        // 1. product service
-            inventoryClient.deductStock(placed.getLineItems().stream()
+            String locationCode = inventoryClient.deductStock(placed.getLineItems().stream()
                     .map(i -> new StockItem(i.getSkuCode(), i.getQuantity()))
                     .toList());                            // 2. inventory service
+            placed.setFulfilmentLocationCode(locationCode);
             placed.setStatus(OrderStatus.CONFIRMED);       // 3. done
             return new OrderPlacementResult(toResponse(orderRepository.save(placed)), Outcome.CONFIRMED);
         } catch (OrderRejectedException | InsufficientStockException e) {
@@ -161,7 +162,8 @@ public class OrderServiceImpl implements OrderService {
         List<OrderLineItemResponse> items = order.getLineItems().stream()
                 .map(i -> new OrderLineItemResponse(i.getSkuCode(), i.getPrice(), i.getCurrency(), i.getQuantity()))
                 .toList();
-        return new OrderResponse(order.getOrderNumber(), order.getStatus(), order.getStatusReason(),
+        return new OrderResponse(order.getOrderNumber(), order.getStatus(), order.getFulfilmentLocationCode(),
+                order.getStatusReason(),
                 order.getCreatedAt(), items);
     }
 }

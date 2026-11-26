@@ -39,6 +39,34 @@
         },
         {
           "v": "17",
+          "name": "Setup - create location",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"orderLocationCode\", \"ORDWH-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"<<orderLocationCode>>\",\n  \"name\": \"Warehouse <<orderLocationCode>>\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 1,\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a warehouse (priority 1). Generates a unique <<orderLocationCode>>."
+        },
+        {
+          "v": "17",
           "name": "Setup - add stock",
           "method": "POST",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory",
@@ -59,11 +87,11 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"quantity\": 5\n}"
+            "body": "{\n  \"skuCode\": \"<<orderSkuCode>>\",\n  \"locationCode\": \"<<orderLocationCode>>\",\n  \"quantity\": 5\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Puts 5 units of <<orderSkuCode>> in stock."
+          "description": "Puts 5 units of <<orderSkuCode>> in stock at <<orderLocationCode>>."
         },
         {
           "v": "17",
@@ -80,7 +108,7 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is CONFIRMED with the product's price\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n  pw.expect(pw.response.body.lineItems[0].price).toBe(49.99);\n  pw.expect(pw.response.body.lineItems[0].currency).toBe(\"USD\");\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Order is CONFIRMED with the product's price\", () => {\n  pw.expect(pw.response.body.status).toBe(\"CONFIRMED\");\n  pw.expect(pw.response.body.lineItems[0].price).toBe(49.99);\n  pw.expect(pw.response.body.lineItems[0].currency).toBe(\"USD\");\n});\npw.test(\"Supplied by the setup location\", () => {\n  pw.expect(pw.response.body.fulfilmentLocationCode).toBe(pw.env.get(\"orderLocationCode\"));\n});\npw.env.set(\"orderNumber\", pw.response.body.orderNumber);",
           "auth": {
             "authType": "inherit",
             "authActive": true
@@ -91,7 +119,7 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Places an order for 2 units. The order service fetches the product (price 49.99 USD), deducts stock in inventory, and returns 201 with status CONFIRMED. Saves <<orderNumber>>."
+          "description": "Places an order for 2 units. The order service fetches the product (price 49.99 USD), deducts stock in inventory from one location (recorded as fulfilmentLocationCode), and returns 201 with status CONFIRMED. Saves <<orderNumber>>."
         },
         {
           "v": "17",
@@ -700,8 +728,296 @@
     },
     {
       "v": 12,
+      "name": "Location Service",
+      "description": "LocationController - /api/locations (inventory service, port 8083). No delete: set active=false.",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "name": "Create Location",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"locationCode\", \"WH-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Location is active\", () => {\n  pw.expect(pw.response.body.code).toBe(pw.env.get(\"locationCode\"));\n  pw.expect(pw.response.body.active).toBe(true);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"<<locationCode>>\",\n  \"name\": \"Warehouse <<locationCode>>\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 1,\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a warehouse. Generates a unique <<locationCode>>. 201 with Location header."
+        },
+        {
+          "v": "17",
+          "name": "Create Location - duplicate code",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Location Already Exists'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Location Already Exists\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"<<locationCode>>\",\n  \"name\": \"Duplicate\",\n  \"type\": \"STORE\",\n  \"country\": \"IN\",\n  \"priority\": 1\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Same code again. Expects 409 'Location Already Exists'."
+        },
+        {
+          "v": "17",
+          "name": "Create Location - validation error",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"bad code\",\n  \"name\": \"\",\n  \"type\": \"STORE\",\n  \"country\": \"India\",\n  \"priority\": -1\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Lowercase code with a space, blank name, 'India' instead of 'IN', negative priority. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "List Locations - first page",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Page has at most 2 items and a cursor when there are more\", () => {\n  pw.expect(pw.response.body.items.length <= 2).toBe(true);\n  pw.expect(pw.response.body.hasMore).toBe(pw.response.body.nextCursor !== null);\n});\npw.env.set(\"locationNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Cursor pagination: first page of 2. Saves nextCursor into <<locationNextCursor>>."
+        },
+        {
+          "v": "17",
+          "name": "List Locations - next page",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [
+            {
+              "key": "limit",
+              "value": "2",
+              "active": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<<locationNextCursor>>",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.env.set(\"locationNextCursor\", pw.response.body.nextCursor || \"\");",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Next page, using the saved nextCursor. Repeat until hasMore is false."
+        },
+        {
+          "v": "17",
+          "name": "List Locations - invalid cursor",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [
+            {
+              "key": "cursor",
+              "value": "not-a-cursor",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});\npw.test(\"Problem title is 'Invalid Cursor'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Cursor\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "A cursor not issued by the API. Expects 400 'Invalid Cursor'."
+        },
+        {
+          "v": "17",
+          "name": "List Locations - limit too large",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [
+            {
+              "key": "limit",
+              "value": "101",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 400 Bad Request\", () => {\n  pw.expect(pw.response.status).toBe(400);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "limit must be 1-100. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Get Location by Code",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations/<<locationCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested location\", () => {\n  pw.expect(pw.response.body.code).toBe(pw.env.get(\"locationCode\"));\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "404 if the code does not exist."
+        },
+        {
+          "v": "17",
+          "name": "Update Location - deactivate",
+          "method": "PUT",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations/<<locationCode>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Location is inactive with priority 9\", () => {\n  pw.expect(pw.response.body.active).toBe(false);\n  pw.expect(pw.response.body.priority).toBe(9);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Bengaluru Warehouse (closed)\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 9,\n  \"active\": false\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Replaces everything except the code. active=false retires the location: it keeps its stock records but never supplies orders."
+        },
+        {
+          "v": "17",
+          "name": "Get Location - not found",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations/NO-SUCH-LOCATION",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 404 Not Found\", () => {\n  pw.expect(pw.response.status).toBe(404);\n});\npw.test(\"Problem title is 'Location Not Found'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Location Not Found\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Expects 404 'Location Not Found'."
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
       "name": "Inventory Service",
-      "description": "InventoryController - /api/inventory (port 8083). Creating stock for a new SKU calls the product service, so it must be running.",
+      "description": "InventoryController - /api/inventory (port 8083). Stock is per SKU and location; the first stock for a SKU calls the product service.",
       "folders": [],
       "requests": [
         {
@@ -734,6 +1050,62 @@
         },
         {
           "v": "17",
+          "name": "Setup - create location 1",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"invLocation1\", \"INV1-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"<<invLocation1>>\",\n  \"name\": \"Warehouse <<invLocation1>>\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 1,\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a warehouse (priority 1). Generates a unique <<invLocation1>>."
+        },
+        {
+          "v": "17",
+          "name": "Setup - create location 2",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/locations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "pw.env.set(\"invLocation2\", \"INV2-\" + Date.now());",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"code\": \"<<invLocation2>>\",\n  \"name\": \"Warehouse <<invLocation2>>\",\n  \"type\": \"WAREHOUSE\",\n  \"addressLine\": \"12 Industrial Area\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postalCode\": \"560001\",\n  \"country\": \"IN\",\n  \"priority\": 2,\n  \"active\": true\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Creates a warehouse (priority 2). Generates a unique <<invLocation2>>."
+        },
+        {
+          "v": "17",
           "name": "Save Inventory - new SKU (creates)",
           "method": "POST",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory",
@@ -747,18 +1119,46 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"Stock is 25 and in stock\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n  pw.expect(pw.response.body.quantity).toBe(25);\n  pw.expect(pw.response.body.inStock).toBe(true);\n});",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});\npw.test(\"25 units at location 1\", () => {\n  pw.expect(pw.response.body.locationCode).toBe(pw.env.get(\"invLocation1\"));\n  pw.expect(pw.response.body.quantity).toBe(25);\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"quantity\": 25\n}"
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"locationCode\": \"<<invLocation1>>\",\n  \"quantity\": 25\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Creates stock for the product made in the setup step: inventory checks the product service first, then returns 201 with a Location header."
+          "description": "25 units at location 1. First stock for this SKU, so inventory checks the product service. 201."
+        },
+        {
+          "v": "17",
+          "name": "Save Inventory - second location",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 201 Created\", () => {\n  pw.expect(pw.response.status).toBe(201);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"locationCode\": \"<<invLocation2>>\",\n  \"quantity\": 10\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "10 units of the same SKU at location 2: a new record (201)."
         },
         {
           "v": "17",
@@ -782,43 +1182,15 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"NO-SUCH-PRODUCT\",\n  \"quantity\": 5\n}"
+            "body": "{\n  \"skuCode\": \"NO-SUCH-PRODUCT\",\n  \"locationCode\": \"<<invLocation1>>\",\n  \"quantity\": 5\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "A new SKU the product service doesn't know. Expects 422 'Unknown Product'; nothing is created."
+          "description": "A SKU the product service doesn't know. Expects 422 'Unknown Product'."
         },
         {
           "v": "17",
-          "name": "Deduct Stock",
-          "method": "POST",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"20 units left\", () => {\n  pw.expect(pw.response.body[0].quantity).toBe(20);\n});",
-          "auth": {
-            "authType": "inherit",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 5\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "All-or-nothing deduction (what the order service calls). 25 - 5 = 20."
-        },
-        {
-          "v": "17",
-          "name": "Save Inventory - existing SKU (updates)",
+          "name": "Save Inventory - unknown location",
           "method": "POST",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory",
           "params": [],
@@ -831,46 +1203,18 @@
             }
           ],
           "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK (updated, not created)\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Quantity is 0 and out of stock\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n  pw.expect(pw.response.body.inStock).toBe(false);\n});",
+          "testScript": "pw.test(\"Status is 422 Unprocessable Content\", () => {\n  pw.expect(pw.response.status).toBe(422);\n});\npw.test(\"Problem title is 'Invalid Location'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Invalid Location\");\n});",
           "auth": {
             "authType": "inherit",
             "authActive": true
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"quantity\": 0\n}"
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"locationCode\": \"NO-SUCH-LOCATION\",\n  \"quantity\": 5\n}"
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Same SKU again: POST updates the quantity of the existing record and returns 200."
-        },
-        {
-          "v": "17",
-          "name": "Deduct Stock - insufficient",
-          "method": "POST",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true,
-              "description": ""
-            }
-          ],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Both SKUs are listed as short\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Insufficient Stock\");\n  pw.expect(pw.response.body.shortages.length).toBe(2);\n});",
-          "auth": {
-            "authType": "inherit",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 1\n    },\n    {\n      \"skuCode\": \"NO-SUCH-SKU\",\n      \"quantity\": 1\n    }\n  ]\n}"
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Run after the quantity was set to 0, plus a SKU with no record. Expects 409 listing both shortages; nothing is deducted."
+          "description": "A location code that doesn't exist. Expects 422 'Invalid Location'."
         },
         {
           "v": "17",
@@ -898,7 +1242,168 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Blank SKU and negative quantity. Expects 400."
+          "description": "Blank SKU, missing locationCode, negative quantity. Expects 400."
+        },
+        {
+          "v": "17",
+          "name": "Get Inventory by SKU",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
+          "params": [],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Total is 35 over 2 locations, location 1 first\", () => {\n  pw.expect(pw.response.body.quantity).toBe(35);\n  pw.expect(pw.response.body.locations.length).toBe(2);\n  pw.expect(pw.response.body.locations[0].locationCode).toBe(pw.env.get(\"invLocation1\"));\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Total across locations plus per-location breakdown (preferred first)."
+        },
+        {
+          "v": "17",
+          "name": "Deduct Stock",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Supplied by location 1, 20 left there\", () => {\n  pw.expect(pw.response.body.locationCode).toBe(pw.env.get(\"invLocation1\"));\n  pw.expect(pw.response.body.items[0].quantity).toBe(20);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 5\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "All items from ONE location: location 1 (priority 1) has enough, so 25 - 5 = 20 there."
+        },
+        {
+          "v": "17",
+          "name": "Deduct Stock - no single location",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'No Single Location'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"No Single Location\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 22\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "22 units: 30 exist in total (20 + 10) but no single location has 22. Expects 409 'No Single Location'."
+        },
+        {
+          "v": "17",
+          "name": "Deduct Stock - insufficient",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory/deductions",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 409 Conflict\", () => {\n  pw.expect(pw.response.status).toBe(409);\n});\npw.test(\"Problem title is 'Insufficient Stock'\", () => {\n  pw.expect(pw.response.body.title).toBe(\"Insufficient Stock\");\n});\npw.test(\"Only the unknown SKU is short\", () => {\n  pw.expect(pw.response.body.shortages.length).toBe(1);\n  pw.expect(pw.response.body.shortages[0].skuCode).toBe(\"NO-SUCH-SKU\");\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"items\": [\n    {\n      \"skuCode\": \"<<inventorySkuCode>>\",\n      \"quantity\": 1\n    },\n    {\n      \"skuCode\": \"NO-SUCH-SKU\",\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Includes a SKU with no stock anywhere. Expects 409 'Insufficient Stock' listing it; nothing is deducted."
+        },
+        {
+          "v": "17",
+          "name": "Save Inventory - existing record (updates)",
+          "method": "POST",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK (updated, not created)\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Location 1 is out of stock\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n  pw.expect(pw.response.body.inStock).toBe(false);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"skuCode\": \"<<inventorySkuCode>>\",\n  \"locationCode\": \"<<invLocation1>>\",\n  \"quantity\": 0\n}"
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Sets location 1 to 0: updates the existing record (200)."
+        },
+        {
+          "v": "17",
+          "name": "List Inventory - by location",
+          "method": "GET",
+          "endpoint": "<<inventoryBaseUrl>>/api/inventory",
+          "params": [
+            {
+              "key": "locationCode",
+              "value": "<<invLocation2>>",
+              "active": true,
+              "description": ""
+            }
+          ],
+          "headers": [],
+          "preRequestScript": "",
+          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"All records are at location 2\", () => {\n  pw.expect(pw.response.body.items.every((i) => i.locationCode === pw.env.get(\"invLocation2\"))).toBe(true);\n});",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          },
+          "requestVariables": [],
+          "responses": {},
+          "description": "Only records at location 2."
         },
         {
           "v": "17",
@@ -960,7 +1465,7 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "Next page, using the nextCursor saved by the previous request. Repeat until hasMore is false."
+          "description": "Next page, using the saved nextCursor. Repeat until hasMore is false."
         },
         {
           "v": "17",
@@ -988,7 +1493,7 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "A cursor that was not issued by the API. Expects 400 'Invalid Cursor'."
+          "description": "A cursor not issued by the API. Expects 400 'Invalid Cursor'."
         },
         {
           "v": "17",
@@ -1020,27 +1525,6 @@
         },
         {
           "v": "17",
-          "name": "Get Inventory by SKU",
-          "method": "GET",
-          "endpoint": "<<inventoryBaseUrl>>/api/inventory/<<inventorySkuCode>>",
-          "params": [],
-          "headers": [],
-          "preRequestScript": "",
-          "testScript": "pw.test(\"Status is 200 OK\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});\npw.test(\"Returns the requested SKU\", () => {\n  pw.expect(pw.response.body.skuCode).toBe(pw.env.get(\"inventorySkuCode\"));\n});\npw.test(\"Shows the updated quantity\", () => {\n  pw.expect(pw.response.body.quantity).toBe(0);\n});",
-          "auth": {
-            "authType": "inherit",
-            "authActive": true
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          },
-          "requestVariables": [],
-          "responses": {},
-          "description": "Stock level for one SKU. 404 if the SKU has no record."
-        },
-        {
-          "v": "17",
           "name": "Get Inventory - not found",
           "method": "GET",
           "endpoint": "<<inventoryBaseUrl>>/api/inventory/NO-SUCH-SKU",
@@ -1058,7 +1542,7 @@
           },
           "requestVariables": [],
           "responses": {},
-          "description": "A SKU with no inventory record. Expects 404 'Inventory Not Found'."
+          "description": "A SKU with no records. Expects 404 'Inventory Not Found'."
         }
       ],
       "auth": {

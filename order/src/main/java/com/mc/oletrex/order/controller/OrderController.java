@@ -41,7 +41,7 @@ public class OrderController {
     @Operation(summary = "Place an order",
             description = "Saves the order as PLACED, fetches each product from the product service "
                     + "(must exist and be active; its current price is used), deducts stock in the inventory "
-                    + "service, then marks the order CONFIRMED. If a step fails the order is kept as CANCELLED "
+                    + "service (all items from one location, recorded as fulfilmentLocationCode), then marks the order CONFIRMED. If a step fails the order is kept as CANCELLED "
                     + "with statusReason. The order is saved in every case, so Location is always set.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Order CONFIRMED"),

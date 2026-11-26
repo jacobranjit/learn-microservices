@@ -1,30 +1,44 @@
 package com.mc.oletrex.inventory.repository;
 
 import com.mc.oletrex.inventory.model.Inventory;
+import com.mc.oletrex.inventory.model.Location;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
-    Optional<Inventory> findBySkuCode(String skuCode);
+    Optional<Inventory> findBySkuCodeAndLocation(String skuCode, Location location);
+
+    /** True if the SKU has stock records at any location. */
+    boolean existsBySkuCode(String skuCode);
+
+    /** All records of a SKU with their locations, preferred locations first. */
+    @Query("select i from Inventory i join fetch i.location l where i.skuCode = :skuCode order by l.priority, l.id")
+    List<Inventory> findAllBySkuCodeWithLocation(@Param("skuCode") String skuCode);
 
     /**
-     * Atomically subtracts {@code quantity} if enough stock is available.
-     * The check and the update happen in one statement, so concurrent orders cannot oversell.
-     *
-     * @return 1 if deducted, 0 if the SKU has no record or not enough stock
+     * Locks every record of the given SKUs (SELECT ... FOR UPDATE) until the transaction ends,
+     * so no other deduction can change them while a location is chosen. Rows are locked in
+     * (SKU, location) order so concurrent deductions cannot deadlock.
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update Inventory i set i.quantity = i.quantity - :quantity "
-            + "where i.skuCode = :skuCode and i.quantity >= :quantity")
-    int deductIfAvailable(@Param("skuCode") String skuCode, @Param("quantity") int quantity);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Inventory i join fetch i.location l where i.skuCode in :skuCodes order by i.skuCode, l.id")
+    List<Inventory> lockAllBySkuCodeIn(@Param("skuCodes") Collection<String> skuCodes);
 
-    /** Keyset page: records after the given id, in id order. Uses the primary-key index. */
-    List<Inventory> findByIdGreaterThanOrderByIdAsc(Long afterId, Limit limit);
+    /** Keyset page of records, in id order, optionally filtered by SKU and/or location code. */
+    @Query("select i from Inventory i join fetch i.location l where i.id > :afterId "
+            + "and (:skuCode is null or i.skuCode = :skuCode) "
+            + "and (:locationCode is null or l.code = :locationCode) order by i.id")
+    List<Inventory> findPage(@Param("afterId") Long afterId,
+                             @Param("skuCode") String skuCode,
+                             @Param("locationCode") String locationCode,
+                             Limit limit);
 }

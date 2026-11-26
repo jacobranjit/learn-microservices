@@ -1,10 +1,12 @@
 package com.mc.oletrex.inventory.controller;
 
 import com.mc.oletrex.inventory.dto.CursorPage;
+import com.mc.oletrex.inventory.dto.InventoryRecordResponse;
 import com.mc.oletrex.inventory.dto.InventoryRequest;
 import com.mc.oletrex.inventory.dto.InventoryResponse;
 import com.mc.oletrex.inventory.dto.InventoryUpsertResult;
 import com.mc.oletrex.inventory.dto.StockDeductionRequest;
+import com.mc.oletrex.inventory.dto.StockDeductionResponse;
 import com.mc.oletrex.inventory.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,29 +30,28 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 
 @RestController
-@Tag(name = "Inventory", description = "Create, read, update and delete stock levels per SKU")
+@Tag(name = "Inventory", description = "Stock per SKU and location")
 @RequestMapping("/api/inventory")
 @RequiredArgsConstructor
 public class InventoryController {
 
     private final InventoryService inventoryService;
 
-    @Operation(summary = "Create or update the stock level of a SKU",
-            description = "Creates the inventory record if the SKU has none (201), otherwise sets its "
-                    + "quantity (200). Creating first checks that the product exists in the product service "
-                    + "(inactive products are allowed); updating an existing record does not call it.",
+    @Operation(summary = "Create or update the stock of a SKU at a location",
+            description = "Creates the record if the SKU has none at this location (201), otherwise sets its "
+                    + "quantity (200). The location must exist and be active. The first stock for a SKU "
+                    + "(at any location) is checked against the product service; later saves are not.",
             responses = {
-                    @ApiResponse(responseCode = "201", description = "New record created; Location header points to it"),
+                    @ApiResponse(responseCode = "201", description = "New record created; Location header points to the SKU"),
                     @ApiResponse(responseCode = "200", description = "Existing record updated"),
                     @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
-                    @ApiResponse(responseCode = "422", description = "New SKU, but no such product in the product service", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
-                    @ApiResponse(responseCode = "503", description = "New SKU, and the product service is unavailable", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+                    @ApiResponse(responseCode = "422", description = "Unknown or inactive location, or no such product in the product service", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
+                    @ApiResponse(responseCode = "503", description = "First stock for a SKU, and the product service is unavailable", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
             })
     @PostMapping
-    public ResponseEntity<InventoryResponse> saveInventory(@Valid @RequestBody InventoryRequest request) {
+    public ResponseEntity<InventoryRecordResponse> saveInventory(@Valid @RequestBody InventoryRequest request) {
         InventoryUpsertResult result = inventoryService.saveInventory(request);
         if (!result.created()) {
             return ResponseEntity.ok(result.inventory());
@@ -62,42 +63,47 @@ public class InventoryController {
         return ResponseEntity.created(location).body(result.inventory());
     }
 
-    @Operation(summary = "Deduct stock for several SKUs, all or nothing",
-            description = "Used by the order service when an order is placed. Either every item is deducted "
-                    + "or none is. Quantities for the same SKU are added together.",
+    @Operation(summary = "Deduct stock for an order from a single location, all or nothing",
+            description = "Used by the order service. Picks the active location with the lowest priority number "
+                    + "that has enough of every item, and deducts everything from it. Quantities for the same "
+                    + "SKU are added together.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Stock deducted; returns the new stock levels"),
+                    @ApiResponse(responseCode = "200", description = "Stock deducted; returns the supplying location and what is left there"),
                     @ApiResponse(responseCode = "400", description = "Validation failed or malformed JSON", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
-                    @ApiResponse(responseCode = "409", description = "Not enough stock (or no record) for at least one SKU; nothing was deducted", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+                    @ApiResponse(responseCode = "409", description = "Insufficient Stock (not enough across active locations) or No Single Location (enough in total, but split); nothing was deducted", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
             })
     @PostMapping("/deductions")
-    public List<InventoryResponse> deductStock(@Valid @RequestBody StockDeductionRequest request) {
+    public StockDeductionResponse deductStock(@Valid @RequestBody StockDeductionRequest request) {
         return inventoryService.deductStock(request);
     }
 
-    @Operation(summary = "Get the stock level for a SKU",
+    @Operation(summary = "Get a SKU's stock: total plus per-location breakdown",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Inventory found"),
-                    @ApiResponse(responseCode = "404", description = "No inventory record for this SKU", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+                    @ApiResponse(responseCode = "404", description = "No inventory records for this SKU", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
             })
     @GetMapping("/{skuCode}")
     public InventoryResponse getInventory(@PathVariable String skuCode) {
         return inventoryService.getInventory(skuCode);
     }
 
-    @Operation(summary = "List inventory records, one page at a time (cursor pagination)",
+    @Operation(summary = "List stock records (one per SKU and location), one page at a time",
             description = "Omit cursor for the first page. Then pass the nextCursor from the previous "
                     + "response until hasMore is false. Ordered by creation.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "One page of inventory records"),
+                    @ApiResponse(responseCode = "200", description = "One page of stock records"),
                     @ApiResponse(responseCode = "400", description = "Invalid cursor or limit", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
             })
     @GetMapping
-    public CursorPage<InventoryResponse> getInventoryPage(
+    public CursorPage<InventoryRecordResponse> getInventoryPage(
             @Parameter(description = "nextCursor from the previous page; omit for the first page")
             @RequestParam(required = false) String cursor,
             @Parameter(description = "Page size, 1-100")
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
-        return inventoryService.getInventoryPage(cursor, limit);
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
+            @Parameter(description = "Only records of this SKU")
+            @RequestParam(required = false) String skuCode,
+            @Parameter(description = "Only records at this location")
+            @RequestParam(required = false) String locationCode) {
+        return inventoryService.getInventoryPage(cursor, limit, skuCode, locationCode);
     }
 }
